@@ -1,3 +1,125 @@
+'use strict';
+
+var sprintf = require('sprintf-js').sprintf;
+var fs = require('fs');
+var path = require('path');
+
+const ROOT_R     = path.resolve(__dirname);
+const SERVER_ROOT = 'server';
+const APP_ROOT    = 'apps';
+const SERVER_OUT  = 'dist';
+
+const STATIC_ROOT = path.join(SERVER_OUT, 'static');
+const DYNAMIC_ROOT= path.join(SERVER_OUT, 'dynamic');
+const RUNTIME_ROOT= path.join(SERVER_OUT, 'runtime');
+
+const HTML_DIR_NAME   = 'html';
+const JS_DIR_NAME     = 'javascripts';
+const CSS_DIR_NAME    = 'stylesheets';
+const IMAGE_DIR_NAME  = 'images';
+const VIDEO_DIR_NAME  = 'video';
+const DATA_DIR_NAME    = 'data';
+
+
+const ROOT_APP_R = path.resolve(__dirname, APP_ROOT);
+
+
+function getAllFiles(root, exts, tp)
+{
+    let files = [];
+    fs.readdirSync(root).map((fname) => {
+        for (let test_ext of exts) {
+            if (fname.endsWith('.' + test_ext) && fname.endsWith(sprintf('-%s.%s', tp, test_ext))) {
+                files.push(path.join(root, fname));
+            }
+        }
+    });
+
+    return files;
+}
+
+class AppConfig
+{
+    constructor(apppath)
+    {
+        this.root = path.join(ROOT_R, apppath);
+        this.appame = apppath.replace('/', '.');
+
+        this.config =  {
+            build: {
+                infiles: {
+                    sta_css:    getAllFiles(this.root, ['css'], 's'),
+                    dyn_css:    getAllFiles(this.root, ['css'], 'd'),
+                    sta_sass:   getAllFiles(this.root, ['scss'], 's'),
+                    dyn_sass:   getAllFiles(this.root, ['scss'], 'd'),
+                    sta_html:   getAllFiles(this.root, ['html'], 's'),
+                    dyn_html:   getAllFiles(this.root, ['html'], 'd'),
+                    sta_js:     getAllFiles(this.root, ['js'], 's'),
+                    dyn_js:     getAllFiles(this.root, ['js'], 'd'),
+                    sta_pug:    getAllFiles(this.root, ['pug'], 's'),
+                    dyn_pug:    getAllFiles(this.root, ['pug'], 'd'),
+                },
+                outdir: {
+                    sta_css:    path.resolve(__dirname, STATIC_ROOT, CSS_DIR_NAME),
+                    dyn_css:    path.resolve(__dirname, DYNAMIC_ROOT, CSS_DIR_NAME),
+                    sta_html:   path.resolve(__dirname, STATIC_ROOT, HTML_DIR_NAME),
+                    dyn_html:   path.resolve(__dirname, DYNAMIC_ROOT, HTML_DIR_NAME),
+                    sta_js:     path.resolve(__dirname, STATIC_ROOT, JS_DIR_NAME),
+                    dyn_js:     path.resolve(__dirname, DYNAMIC_ROOT, JS_DIR_NAME),
+                }
+            },
+            rt: {},
+            routes: {},
+        }
+
+        this.children = [];
+    }
+};
+
+
+function constructAppConfigTree(root)
+{
+    let apppath = root.substr(ROOT_R.length);
+    if (apppath[0] == '/') {
+        apppath = apppath.substr(1);
+    }
+
+    let app_spec_config = null;
+    try {
+        app_spec_config = require(path.join(root, 'config.js'));
+    } catch (e) {}
+
+    let app_class = app_spec_config && app_spec_config.app_config_class(AppConfig) || AppConfig;
+
+    let app = new app_class(apppath);
+    app.children = fs.readdirSync(root).map((fname) => {
+        let real_path = path.join(root, fname);
+        if (fs.statSync(real_path).isDirectory()) {
+            return constructAppConfigTree(real_path);
+        } else {
+            return null;
+        }
+    }).filter((o) => o);
+
+    return app;
+}
+            
+class ServerConfig
+{
+    constructor()
+    {
+    }
+};
+
+//const gloal_app = new AppConfig();
+//constructAppConfigTree(ROOT_APP_R)
+
+const config = {
+    app:  constructAppConfigTree(ROOT_APP_R),
+    server: new ServerConfig(),
+};
+
+/*
 var SOURCE_DIR  = 'src';
 var RES_SOURCE_DIR = 'res';
 var BUILD_DIR = 'public';
@@ -70,3 +192,5 @@ if (require.main === module) {
         }
     }
 }
+*/
+module.exports = config

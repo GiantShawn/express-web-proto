@@ -22,7 +22,7 @@ def setup_cmd(cmd):
 @setup_cmd
 def default():
     create_express_proj()
-    restructure_express_proj()
+    #restructure_express_proj()
 
 def create_express_proj():
     create_express_cmd = ['express', '-f', '-v', 'pug', '-c', '--git', '.']
@@ -38,16 +38,16 @@ def create_express_proj():
             os.abort()
 
 def restructure_express_proj():
-    print ("Restructure Project Directories according to this config");
-    for cn, c in config_seq:
-        print('{!s:<20}{!s}'.format(cn, c), sep='\t')
+    #print ("Restructure Project Directories according to this config");
+    #for cn, c in config_seq:
+        #print('{!s:<20}{!s}'.format(cn, c), sep='\t')
 
-    for cn, c in config_seq:
-        os.makedirs(c, exist_ok = True)
+    #for cn, c in config_seq:
+        #os.makedirs(c, exist_ok = True)
 
-    if not (0 == sp.call('mv routes/*.js ' +  config['srv_js_build_in'], shell=True) and 0 == sp.call('mv views/*.pug ' + config['pug_build_in'], shell=True)):
-        print("Restructure Project Directory fail!")
-        os.abort()
+    #if not (0 == sp.call('mv routes/*.js ' +  config['srv_js_build_in'], shell=True) and 0 == sp.call('mv views/*.pug ' + config['pug_build_in'], shell=True)):
+        #print("Restructure Project Directory fail!")
+        #os.abort()
 
     sp.call(['rm', '-rf', 'routes', 'views'])
 
@@ -74,11 +74,11 @@ if __name__ == '__main__':
     setup_args = parser.parse_args(sys.argv[1:])
 
 
-    config_str = sp.check_output(['node', 'config.js', 'print_dirs'])
+    #config_str = sp.check_output(['node', 'config.js', 'print_dirs'])
     #from io import StringIO
     #config_stream = StringIO(config_str.decode('utf-8'))
-    config_seq = [l.split() for l in config_str.strip().decode('utf-8').split('\n')]
-    config = dict(config_seq)
+    #config_seq = [l.split() for l in config_str.strip().decode('utf-8').split('\n')]
+    #config = dict(config_seq)
 
     SETUP_CMDS[setup_args.target]()
 
