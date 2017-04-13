@@ -5,13 +5,15 @@ var logger = require('morgan');
 var cookieParser = require('cookie-parser');
 var bodyParser = require('body-parser');
 
-var index = require('./routes/index');
-var users = require('./routes/users');
+const config = require('./config.js');
+
+var index = require(path.join(config.server.config.outdir, 'routes/index'));
+var users = require(path.join(config.server.config.outdir, 'routes/users'));
 
 var app = express();
 
 // view engine setup
-app.set('views', path.join(__dirname, 'views'));
+app.set('views', path.join(__dirname, 'dist/views/pug'));
 app.set('view engine', 'pug');
 
 // uncomment after placing your favicon in /public
@@ -20,6 +22,13 @@ app.use(logger('dev'));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
+app.use(require('node-sass-middleware')({
+  src: path.join(__dirname, 'sass'),
+  dest: path.join(__dirname, 'public/stylesheets'),
+  prefix: '/stylesheets',
+  sourceMap: true,
+  debug: true
+}));
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/', index);
