@@ -108,6 +108,9 @@ class ServerConfig
 {
     constructor()
     {
+        this.config = {
+            outdir: path.resolve(__dirname, SERVER_OUT)
+        }
     }
 };
 
