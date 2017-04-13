@@ -21,8 +21,9 @@ def setup_cmd(cmd):
 
 @setup_cmd
 def default():
-    create_express_proj()
+    #create_express_proj()
     #restructure_express_proj()
+    pass
 
 def create_express_proj():
     create_express_cmd = ['express', '-f', '-v', 'pug', '-c', '--git', '.']
