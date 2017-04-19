@@ -1,16 +1,22 @@
 'use strict';
 
-var sprintf = require('sprintf-js').sprintf;
-var fs = require('fs');
-var path = require('path');
+const sprintf = require('sprintf-js').sprintf;
+const fs = require('fs');
+const path = require('path');
+const process = require('process');
+const assert = require('assert');
+
+const NODE_ENV = process.env.NODE_ENV || 'production';
 
 const ROOT_R     = path.resolve(__dirname);
-const SERVER_ROOT = 'server';
-const APP_ROOT    = 'apps';
-const SERVER_OUT  = 'dist';
+const SERVER_SRC_ROOT = 'server';
+const APP_SRC_ROOT    = 'apps';
+
+const SERVER_OUT      = 'dist';
 
 const STATIC_ROOT = path.join(SERVER_OUT, 'static');
 const DYNAMIC_ROOT= path.join(SERVER_OUT, 'dynamic');
+const SERVER_ROOT = path.join(SERVER_OUT, 'server');
 const RUNTIME_ROOT= path.join(SERVER_OUT, 'runtime');
 
 const HTML_DIR_NAME   = 'html';
@@ -18,10 +24,11 @@ const JS_DIR_NAME     = 'javascripts';
 const CSS_DIR_NAME    = 'stylesheets';
 const IMAGE_DIR_NAME  = 'images';
 const VIDEO_DIR_NAME  = 'video';
-const DATA_DIR_NAME    = 'data';
+const DATA_DIR_NAME   = 'data';
+const PUG_DIR_NAME    = 'pug';
 
 
-const ROOT_APP_R = path.resolve(__dirname, APP_ROOT);
+const ROOT_APP_R = path.resolve(__dirname, APP_SRC_ROOT);
 
 
 function getAllFiles(root, exts, tp)
@@ -45,6 +52,9 @@ class AppConfig
         this.root = path.join(ROOT_R, apppath);
         this.appame = apppath.replace('/', '.');
 
+        let sta_repo = path.resolve(__dirname, STATIC_ROOT);
+        let dyn_repo = path.resolve(__dirname, DYNAMIC_ROOT);
+
         this.config =  {
             build: {
                 infiles: {
@@ -60,12 +70,16 @@ class AppConfig
                     dyn_pug:    getAllFiles(this.root, ['pug'], 'd'),
                 },
                 outdir: {
-                    sta_css:    path.resolve(__dirname, STATIC_ROOT, CSS_DIR_NAME),
-                    dyn_css:    path.resolve(__dirname, DYNAMIC_ROOT, CSS_DIR_NAME),
-                    sta_html:   path.resolve(__dirname, STATIC_ROOT, HTML_DIR_NAME),
-                    dyn_html:   path.resolve(__dirname, DYNAMIC_ROOT, HTML_DIR_NAME),
-                    sta_js:     path.resolve(__dirname, STATIC_ROOT, JS_DIR_NAME),
-                    dyn_js:     path.resolve(__dirname, DYNAMIC_ROOT, JS_DIR_NAME),
+                    sta_repo:   sta_repo,
+                    dyn_repo:   dyn_repo,
+                    sta_css:    path.join(sta_repo, CSS_DIR_NAME),
+                    dyn_css:    path.join(dyn_repo, CSS_DIR_NAME),
+                    sta_html:   path.join(sta_repo, HTML_DIR_NAME),
+                    dyn_html:   path.join(dyn_repo, HTML_DIR_NAME),
+                    sta_js:     path.join(sta_repo, JS_DIR_NAME),
+                    dyn_js:     path.join(dyn_repo, JS_DIR_NAME),
+
+                    dyn_pug:    path.join(dyn_repo, PUG_DIR_NAME),
                 }
             },
             rt: {},
@@ -104,23 +118,109 @@ function constructAppConfigTree(root)
     return app;
 }
             
-class ServerConfig
+var ServerConfig;
+function __createProductionServerConfig(env = 'production')
 {
-    constructor()
+    class _ServerConfig
     {
-        this.config = {
-            outdir: path.resolve(__dirname, SERVER_OUT)
+        constructor()
+        {
+            let build_out_root = path.resolve(__dirname, SERVER_ROOT);
+            let conf;
+            this.config = conf = {
+                build: {
+                    outdir: build_out_root
+                },
+                rt: {
+                    root: build_out_root,
+                    working_dir: build_out_root,
+                    sta_repo: config.app.config.build.outdir.sta_repo,
+                    sta_repo_rel: null, // depends on sta_repo
+                    dyn_repo: config.app.config.build.outdir.dyn_repo,
+                    dyn_repo_rel: null, // depends on dyn_repo
+
+                    sta_html_repo: config.app.config.build.outdir.sta_html,
+                    sta_html_repo_rel: null, // depends on sta_html_repo
+                    dyn_html_repo: config.app.config.build.outdir.dyn_html,
+                    dyn_html_repo_rel: null, // depends on dyn_html_repo
+
+                    sta_css_repo: config.app.config.build.outdir.sta_css,
+                    sta_css_repo_rel: null, // depends on sta_css_repo
+                    dyn_css_repo: config.app.config.build.outdir.dyn_css,
+                    dyn_css_repo_rel: null, // depends on dyn_css_repo
+
+                    sta_js_repo: config.app.config.build.outdir.sta_js,
+                    sta_js_repo_rel: null, // depends on sta_js_repo
+                    dyn_js_repo: config.app.config.build.outdir.dyn_js,
+                    dyn_js_repo_rel: null, // depends on dyn_js_repo
+
+                    dyn_pug_repo: config.app.config.build.outdir.dyn_pug,
+                    dyn_pug_repo_rel: null, // depends on dyn_pug_repo
+                }
+            }
+            const rel_func = function (to) {
+                return (wd = conf.rt.working_dir) => { return path.relative(wd, to); }; 
+            };
+            for (let repo_rel in conf.rt) {
+                if (repo_rel.endsWith('_rel')) {
+                    let ref_repo = repo_rel.substr(0, repo_rel.length-4);
+                    conf.rt[repo_rel] = rel_func(conf.rt[ref_repo]);
+                }
+            }
         }
-    }
-};
+    };
+    return _ServerConfig;
+}
+
+function __createDebugServerConfig()
+{
+    ////assert(NODE_ENV === 'debug', NODE_ENV);
+    return __createProductionServerConfig('debug');
+}
+
+function __createWebpackDebugServerConfig()
+{
+    class _ServerConfig
+    {
+        constructor()
+        {
+            let build_out_root = path.resolve(__dirname, SERVER_SRC_ROOT);
+            this.config = {
+                build: {
+                    outdir: build_out_root,
+                },
+                rt: {
+                    root: build_out_root,
+                    pug_root: path.join(build_out_root, 'pug'),
+                },
+            }
+        }
+    };
+
+    return _ServerConfig;
+}
+
+if (NODE_ENV === 'production') {
+    ServerConfig = __createProductionServerConfig();
+} else if (NODE_ENV === 'debug') {
+    ServerConfig = __createDebugServerConfig();
+} else if (NODE_ENV === 'webpack-debug') {
+    ServerConfig = __createWebpackDebugServerConfig();
+} else {
+    ServerConfig = __createDebugServerConfig();
+}
+    
 
 //const gloal_app = new AppConfig();
 //constructAppConfigTree(ROOT_APP_R)
 
 const config = {
-    app:  constructAppConfigTree(ROOT_APP_R),
-    server: new ServerConfig(),
+    env_class: NODE_ENV, // production, debug or webpack-debug
+    app: null,           // app config tree
+    server: null,        // server config
 };
+config.app = constructAppConfigTree(ROOT_APP_R);
+config.server = new ServerConfig();
 
 /*
 var SOURCE_DIR  = 'src';
