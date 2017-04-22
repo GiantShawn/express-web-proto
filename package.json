@@ -11,6 +11,7 @@
     "debug": "~2.6.0",
     "express": "~4.14.1",
     "morgan": "~1.7.0",
+    "node-sass-middleware": "^0.11.0",
     "pug": "~2.0.0-beta10",
     "serve-favicon": "~2.3.2",
     "sprintf-js": "^1.0.3"
@@ -33,10 +34,11 @@
     "gulp-sourcemaps": "^2.6.0",
     "mocha": "^3.2.0",
     "nodemon": "^1.11.0",
+    "pug-html-loader": "^1.1.4",
     "quickly-copy-file": "^1.0.0",
     "require-reload": "^0.2.2",
+    "serve-favicon": "~2.3.2",
     "webpack": "^2.3.3",
-    "webpack-dev-server": "^2.4.2",
-    "serve-favicon": "~2.3.2"
+    "webpack-dev-server": "^2.4.2"
   }
 }
