@@ -22,6 +22,7 @@ const RUNTIME_ROOT= path.join(SERVER_OUT, 'runtime');
 const HTML_DIR_NAME   = 'html';
 const JS_DIR_NAME     = 'javascripts';
 const CSS_DIR_NAME    = 'stylesheets';
+const SASS_DIR_NAME   = 'stylesheets/sass';
 const IMAGE_DIR_NAME  = 'images';
 const VIDEO_DIR_NAME  = 'video';
 const DATA_DIR_NAME   = 'data';
@@ -82,13 +83,15 @@ class AppConfig
                     dyn_repo:   dyn_repo,
                     sta_css:    path.join(sta_repo, CSS_DIR_NAME),
                     dyn_css:    path.join(dyn_repo, CSS_DIR_NAME),
+                    dyn_sass:   path.join(dyn_repo, SASS_DIR_NAME),
                     sta_html:   path.join(sta_repo, HTML_DIR_NAME),
                     dyn_html:   path.join(dyn_repo, HTML_DIR_NAME),
                     sta_js:     path.join(sta_repo, JS_DIR_NAME),
                     dyn_js:     path.join(dyn_repo, JS_DIR_NAME),
 
                     dyn_pug:    path.join(dyn_repo, PUG_DIR_NAME),
-                }
+                },
+                dyn_repo: dyn_repo,
             },
             rt: {},
             routes: {},
@@ -106,7 +109,7 @@ function constructAppConfigTree(root, parent = null)
         apppath = apppath.substr(1);
     }
 
-    debuglog("apppath", apppath);
+    //debuglog("apppath", apppath);
 
     let app_spec_config = null;
     try {
@@ -240,6 +243,25 @@ const config = {
 };
 config.app = constructAppConfigTree(ROOT_APP_R);
 config.server = new ServerConfig();
+
+// copy server runtime configure to apps
+(function () {
+    let server_rt = config.server.config.rt;
+    let q = [config.app];
+    while (q.length) {
+        let app = q.shift();
+        app.config.rt = Object.assign({}, server_rt);
+        /*
+        for (let rel_prop in app.config.rt) {
+            if (rel_prop.endsWith('_rel')) {
+                let prop = app.config.rt[rel_prop];
+                app.config.rt[rel_prop] = prop(app.root);
+            }
+        }
+        */
+        q = q.concat(_.values(app.children));
+    };
+}());
 
 /*
 var SOURCE_DIR  = 'src';
