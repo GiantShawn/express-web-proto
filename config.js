@@ -30,15 +30,22 @@ const PUG_DIR_NAME    = 'pug';
 
 const ROOT_APP_R = path.resolve(__dirname, APP_SRC_ROOT);
 
+const _ = require('lodash');
+const debuglog = require('util').debuglog('config');
 
-function getAllFiles(root, exts, tp)
+
+function getAllFiles(root, exts, tps)
 {
     let files = [];
+    exts = [].concat(exts);
+    tps = [].concat(tps);
     fs.readdirSync(root).map((fname) => {
-        for (let test_ext of exts) {
-            if (fname.endsWith('.' + test_ext) && fname.endsWith(sprintf('-%s.%s', tp, test_ext))) {
-                files.push(path.join(root, fname));
-            }
+        if (_.some(exts, (test_ext) => {
+            return _.some(tps, (tp) => {
+                return fname.endsWith(sprintf('-%s.%s', tp, test_ext));
+            })
+        })) {
+            files.push(path.join(root, fname));
         }
     });
 
@@ -47,10 +54,11 @@ function getAllFiles(root, exts, tp)
 
 class AppConfig
 {
-    constructor(apppath)
+    constructor(apppath, parent)
     {
         this.root = path.join(ROOT_R, apppath);
-        this.appame = apppath.replace('/', '.');
+        this.name = apppath.replace(/\//g, '.');
+        this.parent = parent;
 
         let sta_repo = path.resolve(__dirname, STATIC_ROOT);
         let dyn_repo = path.resolve(__dirname, DYNAMIC_ROOT);
@@ -58,16 +66,16 @@ class AppConfig
         this.config =  {
             build: {
                 infiles: {
-                    sta_css:    getAllFiles(this.root, ['css'], 's'),
-                    dyn_css:    getAllFiles(this.root, ['css'], 'd'),
-                    sta_sass:   getAllFiles(this.root, ['scss'], 's'),
-                    dyn_sass:   getAllFiles(this.root, ['scss'], 'd'),
-                    sta_html:   getAllFiles(this.root, ['html'], 's'),
-                    dyn_html:   getAllFiles(this.root, ['html'], 'd'),
-                    sta_js:     getAllFiles(this.root, ['js'], 's'),
-                    dyn_js:     getAllFiles(this.root, ['js'], 'd'),
-                    sta_pug:    getAllFiles(this.root, ['pug'], 's'),
-                    dyn_pug:    getAllFiles(this.root, ['pug'], 'd'),
+                    sta_css:    getAllFiles(this.root, 'css', 's'),
+                    dyn_css:    getAllFiles(this.root, 'css', 'd'),
+                    //sta_sass:   getAllFiles(this.root, ['scss'], 's'),
+                    dyn_sass:   getAllFiles(this.root, 'scss', 'd'),
+                    sta_html:   getAllFiles(this.root, 'html', 's'),
+                    dyn_html:   getAllFiles(this.root, 'html', 'd'),
+                    sta_js:     getAllFiles(this.root, 'js', 's'),
+                    dyn_js:     getAllFiles(this.root, 'js', 'd'),
+                    sta_pug:    getAllFiles(this.root, 'pug', 's'), // all goes through webpack that generate html
+                    dyn_pug:    getAllFiles(this.root, 'pug', 'd'),
                 },
                 outdir: {
                     sta_repo:   sta_repo,
@@ -86,17 +94,19 @@ class AppConfig
             routes: {},
         }
 
-        this.children = [];
+        this.children = Object.create(null);
     }
 };
 
 
-function constructAppConfigTree(root)
+function constructAppConfigTree(root, parent = null)
 {
     let apppath = root.substr(ROOT_R.length);
-    if (apppath[0] == '/') {
+    if (apppath[0] === '/') {
         apppath = apppath.substr(1);
     }
+
+    debuglog("apppath", apppath);
 
     let app_spec_config = null;
     try {
@@ -105,15 +115,21 @@ function constructAppConfigTree(root)
 
     let app_class = app_spec_config && app_spec_config.app_config_class(AppConfig) || AppConfig;
 
-    let app = new app_class(apppath);
-    app.children = fs.readdirSync(root).map((fname) => {
+    let app = new app_class(apppath, parent);
+    let children = fs.readdirSync(root).map((fname) => {
         let real_path = path.join(root, fname);
         if (fs.statSync(real_path).isDirectory()) {
-            return constructAppConfigTree(real_path);
+            return constructAppConfigTree(real_path, app);
         } else {
             return null;
         }
     }).filter((o) => o);
+
+    //debuglog(children);
+
+    for (let c of children) {
+        app.children[c.name.substr(app.name.length+1)] = c;
+    }
 
     return app;
 }
@@ -148,6 +164,9 @@ function __createProductionServerConfig(env = 'production')
                     sta_css_repo_rel: null, // depends on sta_css_repo
                     dyn_css_repo: config.app.config.build.outdir.dyn_css,
                     dyn_css_repo_rel: null, // depends on dyn_css_repo
+
+                    dyn_sass_repo: config.app.config.build.outdir.dyn_sass,
+                    dyn_sass_repo_rel: null, // depends on dyn_sass_repo
 
                     sta_js_repo: config.app.config.build.outdir.sta_js,
                     sta_js_repo_rel: null, // depends on sta_js_repo
@@ -297,3 +316,9 @@ if (require.main === module) {
 }
 */
 module.exports = config
+
+if (require.main === module) {
+    console.log("config.env_class", config.env_class);
+    console.log("config.app", config.app);
+    console.log("config.server", config.server);
+}
