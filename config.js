@@ -13,6 +13,7 @@ const SERVER_SRC_ROOT = 'server';
 const APP_SRC_ROOT    = 'apps';
 
 const SERVER_OUT      = 'dist';
+const NULL_SERVER_OUT = path.join(SERVER_OUT, 'null');
 
 const STATIC_ROOT = path.join(SERVER_OUT, 'static');
 const DYNAMIC_ROOT= path.join(SERVER_OUT, 'dynamic');
@@ -61,8 +62,9 @@ class AppConfig
         this.name = apppath.replace(/\//g, '.');
         this.parent = parent;
 
-        let sta_repo = path.resolve(__dirname, STATIC_ROOT);
-        let dyn_repo = path.resolve(__dirname, DYNAMIC_ROOT);
+        let sta_repo = path.join(ROOT_R, STATIC_ROOT);
+        let dyn_repo = path.join(ROOT_R, DYNAMIC_ROOT);
+        let null_dyn_repo = path.join(ROOT_R, NULL_SERVER_OUT);
 
         this.config =  {
             build: {
@@ -81,17 +83,22 @@ class AppConfig
                 outdir: {
                     sta_repo:   sta_repo,
                     dyn_repo:   dyn_repo,
+                    null_dyn_repo: null_dyn_repo,
+
                     sta_css:    path.join(sta_repo, CSS_DIR_NAME),
                     dyn_css:    path.join(dyn_repo, CSS_DIR_NAME),
                     dyn_sass:   path.join(dyn_repo, SASS_DIR_NAME),
+
                     sta_html:   path.join(sta_repo, HTML_DIR_NAME),
                     dyn_html:   path.join(dyn_repo, HTML_DIR_NAME),
+                    dyn_pug:    path.join(dyn_repo, PUG_DIR_NAME),
+                    null_dyn_html: path.join(null_dyn_repo, HTML_DIR_NAME),
+
                     sta_js:     path.join(sta_repo, JS_DIR_NAME),
                     dyn_js:     path.join(dyn_repo, JS_DIR_NAME),
 
-                    dyn_pug:    path.join(dyn_repo, PUG_DIR_NAME),
                 },
-                dyn_repo: dyn_repo,
+
             },
             rt: {},
             routes: {},
@@ -145,6 +152,7 @@ function __createProductionServerConfig(env = 'production')
         constructor()
         {
             let build_out_root = path.resolve(__dirname, SERVER_ROOT);
+            let appoutdirconfig = config.app.config.build.outdir;
             let conf;
             this.config = conf = {
                 build: {
@@ -153,30 +161,34 @@ function __createProductionServerConfig(env = 'production')
                 rt: {
                     root: build_out_root,
                     working_dir: build_out_root,
-                    sta_repo: config.app.config.build.outdir.sta_repo,
+                    sta_repo: appoutdirconfig.sta_repo,
                     sta_repo_rel: null, // depends on sta_repo
-                    dyn_repo: config.app.config.build.outdir.dyn_repo,
+                    dyn_repo: appoutdirconfig.dyn_repo,
                     dyn_repo_rel: null, // depends on dyn_repo
+                    null_dyn_repo: appoutdirconfig.null_dyn_repo,
+                    null_dyn_repo_rel: null, // depends on null_dyn_repo
 
-                    sta_html_repo: config.app.config.build.outdir.sta_html,
+                    sta_html_repo: appoutdirconfig.sta_html,
                     sta_html_repo_rel: null, // depends on sta_html_repo
-                    dyn_html_repo: config.app.config.build.outdir.dyn_html,
+                    dyn_html_repo: appoutdirconfig.dyn_html,
                     dyn_html_repo_rel: null, // depends on dyn_html_repo
+                    null_dyn_html_repo: appoutdirconfig.null_dyn_html,
+                    null_dyn_html_repo_rel: null, // depends on null_dyn_html_repo
 
-                    sta_css_repo: config.app.config.build.outdir.sta_css,
+                    sta_css_repo: appoutdirconfig.sta_css,
                     sta_css_repo_rel: null, // depends on sta_css_repo
-                    dyn_css_repo: config.app.config.build.outdir.dyn_css,
+                    dyn_css_repo: appoutdirconfig.dyn_css,
                     dyn_css_repo_rel: null, // depends on dyn_css_repo
 
-                    dyn_sass_repo: config.app.config.build.outdir.dyn_sass,
+                    dyn_sass_repo: appoutdirconfig.dyn_sass,
                     dyn_sass_repo_rel: null, // depends on dyn_sass_repo
 
-                    sta_js_repo: config.app.config.build.outdir.sta_js,
+                    sta_js_repo: appoutdirconfig.sta_js,
                     sta_js_repo_rel: null, // depends on sta_js_repo
-                    dyn_js_repo: config.app.config.build.outdir.dyn_js,
+                    dyn_js_repo: appoutdirconfig.dyn_js,
                     dyn_js_repo_rel: null, // depends on dyn_js_repo
 
-                    dyn_pug_repo: config.app.config.build.outdir.dyn_pug,
+                    dyn_pug_repo: appoutdirconfig.dyn_pug,
                     dyn_pug_repo_rel: null, // depends on dyn_pug_repo
                 }
             }

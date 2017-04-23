@@ -5,15 +5,16 @@ var logger = require('morgan');
 var cookieParser = require('cookie-parser');
 var bodyParser = require('body-parser');
 
-const config = require('./config.js');
+const config = require('../config.js');
+const server_config = config.server.config
 
-var index = require(path.join(config.server.config.outdir, 'routes/index'));
-var users = require(path.join(config.server.config.outdir, 'routes/users'));
+//var index = require(path.join(server_config.outdir, 'routes/index'));
+//var users = require(path.join(server_config.outdir, 'routes/users'));
 
 var app = express();
 
 // view engine setup
-app.set('views', path.join(__dirname, 'dist/views/pug'));
+app.set('views', server_config.rt.dyn_pug_repo);
 app.set('view engine', 'pug');
 
 // uncomment after placing your favicon in /public
@@ -22,17 +23,22 @@ app.use(logger('dev'));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
-app.use(require('node-sass-middleware')({
-  src: path.join(__dirname, 'sass'),
-  dest: path.join(__dirname, 'public/stylesheets'),
-  prefix: '/stylesheets',
-  sourceMap: true,
-  debug: true
-}));
-app.use(express.static(path.join(__dirname, 'public')));
 
-app.use('/', index);
-app.use('/users', users);
+if (config.env_class !== 'production')
+{
+    app.use(require('node-sass-middleware')({
+      src: server_config.rt.dyn_sass_repo,
+      dest: server_config.rt.null_dyn_html_repo,
+      prefix: server_config.rt.null_dyn_html_repo.substr(server_config.rt.null_dyn_repo.length),
+      sourceMap: true,
+      debug: true
+    }));
+}
+
+app.use(express.static(server_config.rt.dyn_html_repo)));
+
+//app.use('/', index);
+//app.use('/users', users);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
