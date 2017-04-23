@@ -250,6 +250,9 @@ if (NODE_ENV === 'production') {
 
 const config = {
     env_class: NODE_ENV, // production, debug or webpack-debug
+    env: {
+        static_frontend: null,
+    },
     app: null,           // app config tree
     server: null,        // server config
 };

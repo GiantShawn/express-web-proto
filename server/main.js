@@ -35,6 +35,9 @@ if (config.env_class !== 'production')
     }));
 }
 
+if (!config.env.static_frontend) {
+    app.use(express.static(server_config.rt.sta_html_repo));
+}
 app.use(express.static(server_config.rt.dyn_html_repo)));
 
 //app.use('/', index);
