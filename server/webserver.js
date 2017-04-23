@@ -62,6 +62,36 @@ function WebServer()
 
     server.setupRoutes = function ()
     {
+        route_root = server_config.rt.route_repo;
+        route_root_rel = server_config.rt.route_repo_rel(); // from working dir
+        function route_rel(appname) {
+            let apppath = appname.replace(/\./g, path.sep);
+            let routepath = path.join(route_root_rel, apppath);
+            return path.join(routepath, 'index.js');
+        }
+
+        (function _setupRoute(app, prouter) {
+            //const router = server.Router();
+            /* router_def:
+            *       {
+            *            router: express.Router object
+            *            beforeChildren: function ()
+            *            afterChildren: function ()
+            *       }
+            */
+
+            routerdef = require(route_rel(app.name))(prouter);
+
+            routerdef.beforeChildren();
+
+            if (app.children_seq.length) {
+                app.children_seq.forEach((capp) => {
+                    _setupRoute(capp, routerdef.router).bind(this);
+                });
+            }
+
+            routerdef.afterChildren();
+        }).bind(this)(config.app, server);
     }
 
 

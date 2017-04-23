@@ -18,7 +18,6 @@ const NULL_SERVER_OUT = path.join(SERVER_OUT, 'null');
 const STATIC_ROOT = path.join(SERVER_OUT, 'static');
 const DYNAMIC_ROOT= path.join(SERVER_OUT, 'dynamic');
 const SERVER_ROOT = path.join(SERVER_OUT, 'server');
-const RUNTIME_ROOT= path.join(SERVER_OUT, 'runtime');
 
 const HTML_DIR_NAME   = 'html';
 const JS_DIR_NAME     = 'javascripts';
@@ -29,10 +28,12 @@ const VIDEO_DIR_NAME  = 'video';
 const DATA_DIR_NAME   = 'data';
 const PUG_DIR_NAME    = 'pug';
 
+const ROUTE_DIR_NAME  = 'routes';
+
 
 const ROOT_APP_R = path.resolve(__dirname, APP_SRC_ROOT);
 
-const _ = require('lodash');
+const lo = require('lodash');
 const debuglog = require('util').debuglog('config');
 
 
@@ -42,8 +43,8 @@ function getAllFiles(root, exts, tps)
     exts = [].concat(exts);
     tps = [].concat(tps);
     fs.readdirSync(root).map((fname) => {
-        if (_.some(exts, (test_ext) => {
-            return _.some(tps, (tp) => {
+        if (lo.some(exts, (test_ext) => {
+            return lo.some(tps, (tp) => {
                 return fname.endsWith(sprintf('-%s.%s', tp, test_ext));
             })
         })) {
@@ -66,9 +67,21 @@ class AppConfig
         let dyn_repo = path.join(ROOT_R, DYNAMIC_ROOT);
         let null_dyn_repo = path.join(ROOT_R, NULL_SERVER_OUT);
 
+        let srv_repo = path.join(ROOT_R, SERVER_ROOT);
+        let route_repo = path.join(srv_repo, ROUTE_DIR_NAME);
+
         this.config =  {
             build: {
                 infiles: {
+                    /* -<storage-bid><role-bid>
+                     * storage-bid: s   static
+                     *              d   dynamic
+                     *              v   server
+                     * role-bid(with storage-bid==server): 
+                     *              l   server logic
+                     *              r   route
+                     */
+                    // client files
                     sta_css:    getAllFiles(this.root, 'css', 's'),
                     dyn_css:    getAllFiles(this.root, 'css', 'd'),
                     //sta_sass:   getAllFiles(this.root, ['scss'], 's'),
@@ -79,6 +92,10 @@ class AppConfig
                     dyn_js:     getAllFiles(this.root, 'js', 'd'),
                     sta_pug:    getAllFiles(this.root, 'pug', 's'), // all goes through webpack that generate html
                     dyn_pug:    getAllFiles(this.root, 'pug', 'd'),
+
+                    // server files (always 'dynamic')
+                    srv_js:     getAllFiles(this.root, 'js', 'vl'),
+                    route_js:   getAllfiles(this.root, 'js', 'vr'),
                 },
                 outdir: {
                     sta_repo:   sta_repo,
@@ -97,6 +114,9 @@ class AppConfig
                     sta_js:     path.join(sta_repo, JS_DIR_NAME),
                     dyn_js:     path.join(dyn_repo, JS_DIR_NAME),
 
+                    // server files
+                    srv_js: srv_repo, // the root of server binary
+                    route_js: route_repo, // the root of server routes
                 },
 
             },
@@ -190,6 +210,9 @@ function __createProductionServerConfig(env = 'production')
 
                     dyn_pug_repo: appoutdirconfig.dyn_pug,
                     dyn_pug_repo_rel: null, // depends on dyn_pug_repo
+
+                    route_repo: appoutdirconfig.route_js,
+                    route_repo_rel: null, // depends on route_repo
                 }
             }
             const rel_func = function (to) {
@@ -274,7 +297,7 @@ config.server = new ServerConfig();
             }
         }
         */
-        q = q.concat(_.values(app.children));
+        q = q.concat(lo.values(app.children));
     };
 }());
 
