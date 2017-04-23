@@ -54,6 +54,36 @@ function getAllFiles(root, exts, tps)
 
     return files;
 }
+const __global_outdir = (function () {
+    let sta_repo = path.join(ROOT_R, STATIC_ROOT);
+    let dyn_repo = path.join(ROOT_R, DYNAMIC_ROOT);
+    let null_dyn_repo = path.join(ROOT_R, NULL_SERVER_OUT);
+
+    let srv_repo = path.join(ROOT_R, SERVER_ROOT);
+    let route_repo = path.join(srv_repo, ROUTE_DIR_NAME);
+
+    return {
+        sta_repo:   sta_repo,
+        dyn_repo:   dyn_repo,
+        null_dyn_repo: null_dyn_repo,
+
+        sta_css:    path.join(sta_repo, CSS_DIR_NAME),
+        dyn_css:    path.join(dyn_repo, CSS_DIR_NAME),
+        dyn_sass:   path.join(dyn_repo, SASS_DIR_NAME),
+
+        sta_html:   path.join(sta_repo, HTML_DIR_NAME),
+        dyn_html:   path.join(dyn_repo, HTML_DIR_NAME),
+        dyn_pug:    path.join(dyn_repo, PUG_DIR_NAME),
+        null_dyn_html: path.join(null_dyn_repo, HTML_DIR_NAME),
+
+        sta_js:     path.join(sta_repo, JS_DIR_NAME),
+        dyn_js:     path.join(dyn_repo, JS_DIR_NAME),
+
+        // server files
+        srv_js: srv_repo, // the root of server binary
+        route_js: route_repo, // the root of server routes
+    };
+})();
 
 class AppConfig
 {
@@ -62,13 +92,6 @@ class AppConfig
         this.root = path.join(ROOT_R, apppath);
         this.name = apppath.replace(/\//g, '.');
         this.parent = parent;
-
-        let sta_repo = path.join(ROOT_R, STATIC_ROOT);
-        let dyn_repo = path.join(ROOT_R, DYNAMIC_ROOT);
-        let null_dyn_repo = path.join(ROOT_R, NULL_SERVER_OUT);
-
-        let srv_repo = path.join(ROOT_R, SERVER_ROOT);
-        let route_repo = path.join(srv_repo, ROUTE_DIR_NAME);
 
         this.config =  {
             build: {
@@ -95,33 +118,13 @@ class AppConfig
 
                     // server files (always 'dynamic')
                     srv_js:     getAllFiles(this.root, 'js', 'vl'),
-                    route_js:   getAllfiles(this.root, 'js', 'vr'),
+                    route_js:   getAllFiles(this.root, 'js', 'vr'),
                 },
-                outdir: {
-                    sta_repo:   sta_repo,
-                    dyn_repo:   dyn_repo,
-                    null_dyn_repo: null_dyn_repo,
-
-                    sta_css:    path.join(sta_repo, CSS_DIR_NAME),
-                    dyn_css:    path.join(dyn_repo, CSS_DIR_NAME),
-                    dyn_sass:   path.join(dyn_repo, SASS_DIR_NAME),
-
-                    sta_html:   path.join(sta_repo, HTML_DIR_NAME),
-                    dyn_html:   path.join(dyn_repo, HTML_DIR_NAME),
-                    dyn_pug:    path.join(dyn_repo, PUG_DIR_NAME),
-                    null_dyn_html: path.join(null_dyn_repo, HTML_DIR_NAME),
-
-                    sta_js:     path.join(sta_repo, JS_DIR_NAME),
-                    dyn_js:     path.join(dyn_repo, JS_DIR_NAME),
-
-                    // server files
-                    srv_js: srv_repo, // the root of server binary
-                    route_js: route_repo, // the root of server routes
-                },
+                outdir: __global_outdir,
 
             },
-            rt: {},
-            routes: {},
+            //rtpath: {},
+            //routes: {},
         }
 
         this.children = Object.create(null);
@@ -172,56 +175,56 @@ function __createProductionServerConfig(env = 'production')
         constructor()
         {
             let build_out_root = path.resolve(__dirname, SERVER_ROOT);
-            let appoutdirconfig = config.app.config.build.outdir;
             let conf;
             this.config = conf = {
                 build: {
                     outdir: build_out_root
+                    //route_dir: __global_outdir.route_js,
                 },
-                rt: {
+                rtpath: {
                     root: build_out_root,
                     working_dir: build_out_root,
-                    sta_repo: appoutdirconfig.sta_repo,
+                    sta_repo: __global_outdir.sta_repo,
                     sta_repo_rel: null, // depends on sta_repo
-                    dyn_repo: appoutdirconfig.dyn_repo,
+                    dyn_repo: __global_outdir.dyn_repo,
                     dyn_repo_rel: null, // depends on dyn_repo
-                    null_dyn_repo: appoutdirconfig.null_dyn_repo,
+                    null_dyn_repo: __global_outdir.null_dyn_repo,
                     null_dyn_repo_rel: null, // depends on null_dyn_repo
 
-                    sta_html_repo: appoutdirconfig.sta_html,
+                    sta_html_repo: __global_outdir.sta_html,
                     sta_html_repo_rel: null, // depends on sta_html_repo
-                    dyn_html_repo: appoutdirconfig.dyn_html,
+                    dyn_html_repo: __global_outdir.dyn_html,
                     dyn_html_repo_rel: null, // depends on dyn_html_repo
-                    null_dyn_html_repo: appoutdirconfig.null_dyn_html,
+                    null_dyn_html_repo: __global_outdir.null_dyn_html,
                     null_dyn_html_repo_rel: null, // depends on null_dyn_html_repo
 
-                    sta_css_repo: appoutdirconfig.sta_css,
+                    sta_css_repo: __global_outdir.sta_css,
                     sta_css_repo_rel: null, // depends on sta_css_repo
-                    dyn_css_repo: appoutdirconfig.dyn_css,
+                    dyn_css_repo: __global_outdir.dyn_css,
                     dyn_css_repo_rel: null, // depends on dyn_css_repo
 
-                    dyn_sass_repo: appoutdirconfig.dyn_sass,
+                    dyn_sass_repo: __global_outdir.dyn_sass,
                     dyn_sass_repo_rel: null, // depends on dyn_sass_repo
 
-                    sta_js_repo: appoutdirconfig.sta_js,
+                    sta_js_repo: __global_outdir.sta_js,
                     sta_js_repo_rel: null, // depends on sta_js_repo
-                    dyn_js_repo: appoutdirconfig.dyn_js,
+                    dyn_js_repo: __global_outdir.dyn_js,
                     dyn_js_repo_rel: null, // depends on dyn_js_repo
 
-                    dyn_pug_repo: appoutdirconfig.dyn_pug,
+                    dyn_pug_repo: __global_outdir.dyn_pug,
                     dyn_pug_repo_rel: null, // depends on dyn_pug_repo
 
-                    route_repo: appoutdirconfig.route_js,
+                    route_repo: __global_outdir.route_js,
                     route_repo_rel: null, // depends on route_repo
                 }
             }
             const rel_func = function (to) {
-                return (wd = conf.rt.working_dir) => { return path.relative(wd, to); }; 
+                return (wd = conf.rtpath.working_dir) => { return path.relative(wd, to); }; 
             };
-            for (let repo_rel in conf.rt) {
+            for (let repo_rel in conf.rtpath) {
                 if (repo_rel.endsWith('_rel')) {
                     let ref_repo = repo_rel.substr(0, repo_rel.length-4);
-                    conf.rt[repo_rel] = rel_func(conf.rt[ref_repo]);
+                    conf.rtpath[repo_rel] = rel_func(conf.rtpath[ref_repo]);
                 }
             }
         }
@@ -246,7 +249,7 @@ function __createWebpackDebugServerConfig()
                 build: {
                     outdir: build_out_root,
                 },
-                rt: {
+                rtpath: {
                     root: build_out_root,
                     pug_root: path.join(build_out_root, 'pug'),
                 },
@@ -284,16 +287,16 @@ config.server = new ServerConfig();
 
 // copy server runtime configure to apps
 (function () {
-    let server_rt = config.server.config.rt;
+    let server_rt = config.server.config.rtpath;
     let q = [config.app];
     while (q.length) {
         let app = q.shift();
-        app.config.rt = Object.assign({}, server_rt);
+        app.config.rtpath = Object.assign({}, server_rt);
         /*
-        for (let rel_prop in app.config.rt) {
+        for (let rel_prop in app.config.rtpath) {
             if (rel_prop.endsWith('_rel')) {
-                let prop = app.config.rt[rel_prop];
-                app.config.rt[rel_prop] = prop(app.root);
+                let prop = app.config.rtpath[rel_prop];
+                app.config.rtpath[rel_prop] = prop(app.root);
             }
         }
         */

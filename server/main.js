@@ -25,6 +25,6 @@ server.setupRoutes();
 //app.use('/', index);
 //app.use('/users', users);
 //
-server.setupErrorHanler();
+server.setupErrorHandler();
 
 module.exports = server;

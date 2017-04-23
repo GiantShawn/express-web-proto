@@ -1,7 +1,9 @@
 'use strict';
 
-var config = require('../config.js');
-var server_config = config.server;
+const config = require('../config.js');
+const express = require('express');
+const path = require('path');
+var server_config = config.server.config;
 
 function WebServer()
 {
@@ -9,7 +11,7 @@ function WebServer()
     server.setupGlobalConfig = function ()
     {
         // view engine setup
-        this.set('views', server_config.rt.dyn_pug_repo);
+        this.set('views', server_config.rtpath.dyn_pug_repo);
         this.set('view engine', 'pug');
     }
 
@@ -26,18 +28,18 @@ function WebServer()
         if (config.env_class !== 'production')
         {
             this.use(require('node-sass-middleware')({
-                src: server_config.rt.dyn_sass_repo,
-                dest: server_config.rt.null_dyn_html_repo,
-                prefix: server_config.rt.null_dyn_html_repo.substr(server_config.rt.null_dyn_repo.length),
+                src: server_config.rtpath.dyn_sass_repo,
+                dest: server_config.rtpath.null_dyn_html_repo,
+                prefix: server_config.rtpath.null_dyn_html_repo.substr(server_config.rtpath.null_dyn_repo.length),
                 sourceMap: true,
                 debug: true
             }));
         }
 
         if (!config.env.static_frontend) {
-            this.use(express.static(server_config.rt.sta_html_repo));
+            this.use(express.static(server_config.rtpath.sta_html_repo));
         }
-        this.use(express.static(server_config.rt.dyn_html_repo)));
+        this.use(express.static(server_config.rtpath.dyn_html_repo));
     }
 
     server.setupErrorHandler = function () {
@@ -62,8 +64,8 @@ function WebServer()
 
     server.setupRoutes = function ()
     {
-        route_root = server_config.rt.route_repo;
-        route_root_rel = server_config.rt.route_repo_rel(); // from working dir
+        let route_root = server_config.rtpath.route_repo;
+        let route_root_rel = server_config.rtpath.route_repo_rel(); // from working dir
         function route_rel(appname) {
             let apppath = appname.replace(/\./g, path.sep);
             let routepath = path.join(route_root_rel, apppath);
