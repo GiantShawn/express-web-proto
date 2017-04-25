@@ -153,7 +153,7 @@ function constructAppConfigTree(root, parent = null)
     let app = new app_class(apppath, parent);
     let children = fs.readdirSync(root).map((fname) => {
         let real_path = path.join(root, fname);
-        if (fs.statSync(real_path).isDirectory()) {
+        if (fs.statSync(real_path).isDirectory() && !fname.startsWith('_')) {
             return constructAppConfigTree(real_path, app);
         } else {
             return null;
