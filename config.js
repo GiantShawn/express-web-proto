@@ -381,7 +381,14 @@ if (require.main === module) {
 module.exports = config
 
 if (require.main === module) {
-    console.log("config.env_class", config.env_class);
-    console.log("config.app", config.app);
-    console.log("config.server", config.server);
+    function prettyOutput(name, obj) {
+        const util = require('util');
+        console.log(`--------  ${name} -----------`);
+        console.log(util.inspect(obj, {depth: null}));
+        console.log();
+    }
+
+    prettyOutput("config.env_class", config.env_class);
+    prettyOutput("config.app", config.app);
+    prettyOutput("config.server", config.server);
 }
