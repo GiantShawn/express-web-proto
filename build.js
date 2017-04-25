@@ -51,7 +51,7 @@ function buildApp(rootapp)
         let webpack_config_js = path.join(app.root, 'webpack.config.js');
         fs.access(webpack_config_js, fs.constants.R_OK, function (err) {
             if (err) {
-                console.error(`Can not open webpack.config.js for app ${app.name}.`);
+                console.error(`Can not open webpack.config.js for app [${app.name}].`);
             } else {
                 let webpack_config = require(webpack_config_js);
                 let compiler = webpack(webpack_config);
