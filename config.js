@@ -128,7 +128,9 @@ class AppConfig
         }
 
         this.children = Object.create(null);
+        this.children_seq = null;
     }
+
 };
 
 
@@ -163,6 +165,8 @@ function constructAppConfigTree(root, parent = null)
     for (let c of children) {
         app.children[c.name.substr(app.name.length+1)] = c;
     }
+    children.sort((a, b) => { return (a.hasOwnProperty('priority') && a.priority || 100) - (b.hasOwnPriority('priority') && b.priority || 100); });
+    app.children_seq = children;
 
     return app;
 }

@@ -43,26 +43,37 @@ function setupServerDirectories()
     });
 }
 
-function buildApp(app)
+function buildApp(rootapp)
 {
-    const webpack = require('webpack');
-    let webpack_config_js = path.join(app.root, 'webpack.config.js');
-    fs.access(webpack_config_js, fs.constants.R_OK, function (err) {
-        if (err) {
-            console.error(`Can not open webpack.config.js for app ${app.name}.`);
-        } else {
-            let webpack_config = require(webpack_config_js);
-            let compiler = webpack(webpack_config);
-            compiler.run(function (err, stats) {
-                // compiled
-                if (err) {
-                    console.error(`Webpack app ${app.name} Error!`);
-                } else {
-                    console.log(`Webpack app ${app.name} Succeed!`);
-                }
-            });
-        }
-    });
+    function _buildApp(app) {
+        const webpack = require('webpack');
+        console.log(app.name, app.root);
+        let webpack_config_js = path.join(app.root, 'webpack.config.js');
+        fs.access(webpack_config_js, fs.constants.R_OK, function (err) {
+            if (err) {
+                console.error(`Can not open webpack.config.js for app ${app.name}.`);
+            } else {
+                let webpack_config = require(webpack_config_js);
+                let compiler = webpack(webpack_config);
+                compiler.run(function (err, stats) {
+                    // compiled
+                    if (err) {
+                        console.error(`Webpack app ${app.name} Error!`);
+                    } else {
+                        console.log(`Webpack app ${app.name} Succeed!`);
+                    }
+                });
+            }
+        });
+    }
+    
+    let q = [rootapp];
+    while (q.length) {
+        let e = q.shift();
+        _buildApp(e);
+        q = q.concat(e.children_seq);
+        //console.log(e.name, e.children_seq, q);
+    }
 }
 
 if (require.main === module) {
