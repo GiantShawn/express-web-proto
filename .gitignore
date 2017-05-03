@@ -1,5 +1,4 @@
 *.sw[polmn]
 *.pyc
 node_modules/*
-!node_modules/morerequire
 npm-debug.log
