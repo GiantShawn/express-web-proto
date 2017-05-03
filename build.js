@@ -52,26 +52,47 @@ function buildApp(rootapp)
     function _buildApp(app) {
         console.log("Build App:", app.name, app.root);
 
-        const webpack = require('webpack');
-        let webpack_config_js = path.join(app.root, 'webpack.config.js');
-        return new Promise((res, rej) => {
-            fs.access(webpack_config_js, fs.constants.R_OK, function (err) {
+        return new Promise(function (res, rej) {
+            let tsconfig_def_file = path.join(app.root, 'tsconfig-def.js');
+            fs.access(tsconfig_def_file, fs.constants.R_OK, function (err) {
                 if (err) {
-                    console.log(`Can not open webpack.config.js for app [${app.name}].`);
+                    console.log(`No typescript files to transpile, do nothing for app[${app.name}].`);
                     res();
                 } else {
-                    let webpack_config = require(webpack_config_js);
-                    let compiler = webpack(webpack_config);
-                    compiler.run(function (err, stats) {
-                        // compiled
+                    let tsconfig = require(tsconfig_def_file);
+                    let tsconfig_file = path.join(app.root, 'tsconfig.json');
+                    fs.writeFile(tsconfig_file, JSON.stringify(tsconfig), function (err) {
                         if (err) {
-                            rej(`Webpack app ${app.name} Error!`);
+                            rej(`Fail to write tsconfig.json to app[${app.name}].`);
                         } else {
-                            console.log(`Webpack app ${app.name} Succeed!`);
+                            console.log(`Generate tsconfig.js for app[${app.name}].`);
                             res();
                         }
                     });
                 }
+            });
+        }).then(function () {
+            return new Promise((res, rej) => {
+                const webpack = require('webpack');
+                let webpack_config_js = path.join(app.root, 'webpack.config.js');
+                fs.access(webpack_config_js, fs.constants.R_OK, function (err) {
+                    if (err) {
+                        console.log(`Can not open webpack.config.js for app [${app.name}].`);
+                        res();
+                    } else {
+                        let webpack_config = require(webpack_config_js);
+                        let compiler = webpack(webpack_config);
+                        compiler.run(function (err, stats) {
+                            // compiled
+                            if (err) {
+                                rej(`Webpack app ${app.name} Error!`);
+                            } else {
+                                console.log(`Webpack app ${app.name} Succeed!`);
+                                res();
+                            }
+                        });
+                    }
+                });
             });
         });
     }
