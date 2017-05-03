@@ -179,10 +179,12 @@ function __createProductionServerConfig(env = 'production')
         constructor()
         {
             let build_out_root = path.resolve(__dirname, SERVER_ROOT);
+            let build_in_root = path.resolve(__dirname, SERVER_SRC_ROOT);
             let conf;
             this.config = conf = {
                 build: {
-                    outdir: build_out_root
+                    outdir: build_out_root,
+                    indir: build_in_root,
                     //route_dir: __global_outdir.route_js,
                 },
                 rtpath: {
@@ -218,6 +220,8 @@ function __createProductionServerConfig(env = 'production')
                     dyn_pug_repo: __global_outdir.dyn_pug,
                     dyn_pug_repo_rel: null, // depends on dyn_pug_repo
 
+                    srv_repo: __global_outdir.srv_js,
+                    srv_repo_rel: null, // depends on srv_repo
                     route_repo: __global_outdir.route_js,
                     route_repo_rel: null, // depends on route_repo
                 }

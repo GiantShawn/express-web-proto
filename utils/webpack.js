@@ -3,13 +3,13 @@ const config = require('config');
 const webpack = require('webpack');
 const ExtractTextPlugin = require('extract-text-webpack-plugin');
 
-function NewWebpackConfigBase(appname, options = {})
+function NewClientWebpackConfigBase(appname, options = {})
 {
 	/* options:
 	*   entry: './main.js'
 		*   publicPath: '/'
 		*/
-		const appconfig = config.getApp(appname);
+    const appconfig = config.getApp(appname);
 
 	const common_webpack_config_template = {
 		entry: {
@@ -97,5 +97,49 @@ function NewWebpackConfigBase(appname, options = {})
 	return common_webpack_config_template;
 }
 
+function NewServerWebpackConfigBase(options = {}) 
+{
+    const config = require('config');
+    const serverconfig = config.server.config;
+    const conf = {
+        target: 'node',
+		entry: {
+			main: options.entry || path.join(serverconfig.build.indir, 'server.js'),
+		},
+		output: {
+			path: serverconfig.rtpath.srv_repo,
+			filename: '[name].js',
+			//publicPath: 'dist/'
+		},
+		module: {
+			rules: [
+				{
+					test: /\.js$/,
+					exclude: /node_modules/,
+					use: [{
+						loader: 'babel-loader',
+						options: {
+							presets: ['env']
+						}
+					}]
+				},
+				{
+					test: /\.txt$/,
+					use: [
+						{
+							loader: 'raw-loader'
+						}
+					]
+				},
+			]
+		},
+		//plugins: [
+		//],
 
-exports.NewWebpackConfigBase = NewWebpackConfigBase;
+	};
+    return conf;
+}
+
+
+exports.NewClientWebpackConfigBase = NewClientWebpackConfigBase;
+exports.NewServerWebpackConfigBase = NewServerWebpackConfigBase;
