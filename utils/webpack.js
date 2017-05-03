@@ -104,7 +104,7 @@ function NewServerWebpackConfigBase(options = {})
     const conf = {
         target: 'node',
 		entry: {
-			main: options.entry || path.join(serverconfig.build.indir, 'server.js'),
+			main: options.entry || path.join(serverconfig.build.indir, 'main.js'),
 		},
 		output: {
 			path: serverconfig.rtpath.srv_repo,
