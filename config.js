@@ -285,6 +285,26 @@ const config = {
     },
     app: null,           // app config tree
     server: null,        // server config
+
+    getApp(fullappname) {
+        let appstack = fullappname.split('.');
+		if (appstack[0] !== this.app.name) {
+            console.error("Only accept absolute app name in getApp", fullappname);
+            return null;
+        }
+			
+        let app = this.app;
+        appstack = appstack.slice(1);
+        while (appstack.length) {
+            app = app.children[appstack.shift()]}
+        return app;
+    },
+
+    getAppByDir(apppath) {
+        let rel_root = path.relative(this.app.root, apppath);
+        return this.getApp(path.join(this.app.name, rel_root).replace(new RegExp(path.sep, 'g'), '.'));
+    }
+        
 };
 config.app = constructAppConfigTree(ROOT_APP_R);
 config.server = new ServerConfig();

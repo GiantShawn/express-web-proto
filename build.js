@@ -1,12 +1,12 @@
 /* Build this project as a whole or seperate apps
 */
 
-const config = require('./config.js');
+require('app-module-path').addPath('.');
+const config = require('config.js');
 const mkdirp = require('mkdirp');
 const assert = require('assert');
 const path = require('path');
 const fs = require('fs');
-
 
 function setupServerDirectories()
 {
@@ -33,7 +33,7 @@ function setupServerDirectories()
         }
     }
 
-    Promise.all(repos_p).then((paths) => {
+    return Promise.all(repos_p).then((paths) => {
         console.log("Setup Server Directories Succeed.");
         for (let p of paths) {
             console.log("\t", p);
@@ -45,35 +45,49 @@ function setupServerDirectories()
 
 function buildApp(rootapp)
 {
+    if (!rootapp) {
+        return
+    }
+
     function _buildApp(app) {
+        console.log("Build App:", app.name, app.root);
+
         const webpack = require('webpack');
-        console.log(app.name, app.root);
         let webpack_config_js = path.join(app.root, 'webpack.config.js');
-        fs.access(webpack_config_js, fs.constants.R_OK, function (err) {
-            if (err) {
-                console.error(`Can not open webpack.config.js for app [${app.name}].`);
-            } else {
-                let webpack_config = require(webpack_config_js);
-                let compiler = webpack(webpack_config);
-                compiler.run(function (err, stats) {
-                    // compiled
-                    if (err) {
-                        console.error(`Webpack app ${app.name} Error!`);
-                    } else {
-                        console.log(`Webpack app ${app.name} Succeed!`);
-                    }
-                });
-            }
+        return new Promise((res, rej) => {
+            fs.access(webpack_config_js, fs.constants.R_OK, function (err) {
+                if (err) {
+                    console.log(`Can not open webpack.config.js for app [${app.name}].`);
+                    res();
+                } else {
+                    let webpack_config = require(webpack_config_js);
+                    let compiler = webpack(webpack_config);
+                    compiler.run(function (err, stats) {
+                        // compiled
+                        if (err) {
+                            rej(`Webpack app ${app.name} Error!`);
+                        } else {
+                            console.log(`Webpack app ${app.name} Succeed!`);
+                            res();
+                        }
+                    });
+                }
+            });
         });
     }
     
     let q = [rootapp];
+    let prom = Promise.resolve();
     while (q.length) {
         let e = q.shift();
-        _buildApp(e);
+        prom = prom.then(() => _buildApp(e));
         q = q.concat(e.children_seq);
         //console.log(e.name, e.children_seq, q);
     }
+    prom.catch(function (err) {
+            console.error(err);
+        });
+
 }
 
 if (require.main === module) {
@@ -85,20 +99,12 @@ if (require.main === module) {
     config.env_class = env;
 
     // setup neccesary output directories
-    setupServerDirectories()
-
-    let app = config.app;
-    if (argv.app) {
-        let appname = argv.app;
-        //let apppath = appname.replace(/\./g, path.sep);
-        let appstack = appname.split('.');
-        assert(app.name === appstack[0]);
-        appstack = appstack.slice(1);
-        while (appstack.length) {
-            let subappname = appstack.pop();
-            app = app.children[subappname];
+    setupServerDirectories().then(function () {
+        let app = config.app;
+        if (argv.app) {
+            app = config.getApp(argv.app);
         }
-    }
 
-    buildApp(app);
+        buildApp(app);
+    });
 }
