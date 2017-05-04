@@ -18,6 +18,7 @@ const NULL_SERVER_OUT = path.join(SERVER_OUT, 'null');
 const STATIC_ROOT = path.join(SERVER_OUT, 'static');
 const DYNAMIC_ROOT= path.join(SERVER_OUT, 'dynamic');
 const SERVER_ROOT = path.join(SERVER_OUT, 'server');
+const SERVER_ROOT_R = path.join(ROOT_R, SERVER_ROOT);
 
 const HTML_DIR_NAME   = 'html';
 const JS_DIR_NAME     = 'javascripts';
@@ -85,16 +86,36 @@ const __global_outdir = (function () {
     };
 })();
 
+function getAllAppsDirs(config, prefix)
+{
+    let paths = new Set();
+    let q = [config.app];
+    while (q.length) {
+        let app = q.shift();
+        let paths_obj = app.config.build.outdir;
+        for (let p in paths_obj) {
+            if (p.startsWith(prefix)) {
+                paths.add(paths_obj[p]);
+            }
+        }
+        q = q.concat(app.children_seq);
+    }
+    return paths;
+}
+
 class AppConfig
 {
-    constructor(apppath, parent)
+    constructor(apppath, parent, config_env)
     {
         this.root = path.join(ROOT_R, apppath);
-        this.name = apppath.replace(/\//g, '.');
+        this.apppath = apppath;
+        this.name = apppath.replace(new RegExp(path.sep, 'g'), '.');
         this.parent = parent;
 
-        this.config =  {
-            build: {
+        this.config =  {}
+        
+        if (config_env === 'build') {
+            this.config.build = {
                 infiles: {
                     /* -<storage-bid><role-bid>
                      * storage-bid: s   static
@@ -120,11 +141,12 @@ class AppConfig
                     srv_js:     getAllFiles(this.root, 'js', 'vl'),
                     route_js:   getAllFiles(this.root, 'js', 'vr'),
                 },
-                outdir: __global_outdir,
+                outdir: lo.assign({}, __global_outdir,
+                    {
+                        route_js: path.join(__global_outdir.route_js, apppath) /* the root of server routes */
+                    }),
 
-            },
-            //rtpath: {},
-            //routes: {},
+            }
         }
 
         this.children = Object.create(null);
@@ -134,7 +156,7 @@ class AppConfig
 };
 
 
-function constructAppConfigTree(root, parent = null)
+function constructAppConfigTree(root, parent, config_env)
 {
     let apppath = root.substr(ROOT_R.length);
     if (apppath[0] === '/') {
@@ -150,11 +172,11 @@ function constructAppConfigTree(root, parent = null)
 
     let app_class = app_spec_config && app_spec_config.app_config_class(AppConfig) || AppConfig;
 
-    let app = new app_class(apppath, parent);
+    let app = new app_class(apppath, parent, config_env);
     let children = fs.readdirSync(root).map((fname) => {
         let real_path = path.join(root, fname);
         if (fs.statSync(real_path).isDirectory() && !fname.startsWith('_')) {
-            return constructAppConfigTree(real_path, app);
+            return constructAppConfigTree(real_path, app, config_env);
         } else {
             return null;
         }
@@ -176,20 +198,29 @@ function __createProductionServerConfig(env = 'production')
 {
     class _ServerConfig
     {
-        constructor()
+        constructor(config, config_env)
         {
             let build_out_root = path.resolve(__dirname, SERVER_ROOT);
+            let working_dir = path.resolve(__dirname, SERVER_OUT);
             let build_in_root = path.resolve(__dirname, SERVER_SRC_ROOT);
+            let route_repo = path.join(SERVER_ROOT_R, ROUTE_DIR_NAME);
             let conf;
-            this.config = conf = {
-                build: {
-                    outdir: build_out_root,
+            this.config = conf = {}
+            if (config_env === 'build') {
+                conf.build = {
                     indir: build_in_root,
-                    //route_dir: __global_outdir.route_js,
-                },
-                rtpath: {
+                    outdir: build_out_root,
+                    routeroot: route_repo,
+                    sta_resdir: getAllAppsDirs(config, 'sta'),
+                    dyn_resdir: getAllAppsDirs(config, 'dyn'),
+                    null_dyn_resdir: getAllAppsDirs(config, 'null_dyn'),
+                    routedir: getAllAppsDirs(config, 'route'),
+                    working_dir: working_dir,
+                }
+            } else if (config_env === 'server') {
+                conf.rtpath = {
                     root: build_out_root,
-                    working_dir: build_out_root,
+                    working_dir: working_dir,
                     sta_repo: __global_outdir.sta_repo,
                     sta_repo_rel: null, // depends on sta_repo
                     dyn_repo: __global_outdir.dyn_repo,
@@ -225,14 +256,14 @@ function __createProductionServerConfig(env = 'production')
                     route_repo: __global_outdir.route_js,
                     route_repo_rel: null, // depends on route_repo
                 }
-            }
-            const rel_func = function (to) {
-                return (wd = conf.rtpath.working_dir) => { return path.relative(wd, to); }; 
-            };
-            for (let repo_rel in conf.rtpath) {
-                if (repo_rel.endsWith('_rel')) {
-                    let ref_repo = repo_rel.substr(0, repo_rel.length-4);
-                    conf.rtpath[repo_rel] = rel_func(conf.rtpath[ref_repo]);
+                const rel_func = function (to) {
+                    return (wd = conf.rtpath.working_dir) => { return path.relative(wd, to); }; 
+                };
+                for (let repo_rel in conf.rtpath) {
+                    if (repo_rel.endsWith('_rel')) {
+                        let ref_repo = repo_rel.substr(0, repo_rel.length-4);
+                        conf.rtpath[repo_rel] = rel_func(conf.rtpath[ref_repo]);
+                    }
                 }
             }
         }
@@ -279,58 +310,6 @@ if (NODE_ENV === 'production') {
 }
     
 
-//const gloal_app = new AppConfig();
-//constructAppConfigTree(ROOT_APP_R)
-
-const config = {
-    env_class: NODE_ENV, // production, debug or webpack-debug
-    env: {
-        static_frontend: null,
-    },
-    app: null,           // app config tree
-    server: null,        // server config
-
-    getApp(fullappname) {
-        let appstack = fullappname.split('.');
-		if (appstack[0] !== this.app.name) {
-            console.error("Only accept absolute app name in getApp", fullappname);
-            return null;
-        }
-			
-        let app = this.app;
-        appstack = appstack.slice(1);
-        while (appstack.length) {
-            app = app.children[appstack.shift()]}
-        return app;
-    },
-
-    getAppByDir(apppath) {
-        let rel_root = path.relative(this.app.root, apppath);
-        return this.getApp(path.join(this.app.name, rel_root).replace(new RegExp(path.sep, 'g'), '.'));
-    }
-        
-};
-config.app = constructAppConfigTree(ROOT_APP_R);
-config.server = new ServerConfig();
-
-// copy server runtime configure to apps
-(function () {
-    let server_rt = config.server.config.rtpath;
-    let q = [config.app];
-    while (q.length) {
-        let app = q.shift();
-        app.config.rtpath = Object.assign({}, server_rt);
-        /*
-        for (let rel_prop in app.config.rtpath) {
-            if (rel_prop.endsWith('_rel')) {
-                let prop = app.config.rtpath[rel_prop];
-                app.config.rtpath[rel_prop] = prop(app.root);
-            }
-        }
-        */
-        q = q.concat(lo.values(app.children));
-    };
-}());
 
 /*
 var SOURCE_DIR  = 'src';
@@ -406,7 +385,75 @@ if (require.main === module) {
     }
 }
 */
-module.exports = config
+
+var CONFIG_MAP = {};
+
+function ConfigGenerator(config_env) {
+    if (CONFIG_MAP[config_env])
+        return CONFIG_MAP[config_env];
+
+    const config = CONFIG_MAP[config_env] = {
+        env_class: NODE_ENV, // production, debug or webpack-debug
+        env: {
+            static_frontend: null,
+        },
+        app: null,           // app config tree
+        server: null,        // server config
+
+        getApp(fullappname) {
+            let appstack = fullappname.split('.');
+            if (appstack[0] !== this.app.name) {
+                console.error("Only accept absolute app name in getApp", fullappname);
+                return null;
+            }
+                
+            let app = this.app;
+            appstack = appstack.slice(1);
+            while (appstack.length) {
+                app = app.children[appstack.shift()]}
+            return app;
+        },
+
+        getAppByDir(apppath) {
+            let rel_root = path.relative(this.app.root, apppath);
+            return this.getApp(path.join(this.app.name, rel_root).replace(new RegExp(path.sep, 'g'), '.'));
+        },
+
+        project_root: ROOT_R,
+            
+    };
+    if (config_env === 'build') {
+        config.app = constructAppConfigTree(ROOT_APP_R, null, config_env);
+    } else if (config_env == 'server') {
+        config.app = constructAppConfigTree(__global_outdir.route_js, null, config_env);
+    }
+    config.server = new ServerConfig(config, config_env);
+
+    // copy server runtime configure to apps
+    if (false) {
+    (function () {
+        let server_rt = config.server.config.rtpath;
+        let q = [config.app];
+        while (q.length) {
+            let app = q.shift();
+            app.config.rtpath = Object.assign({}, server_rt);
+            /*
+            for (let rel_prop in app.config.rtpath) {
+                if (rel_prop.endsWith('_rel')) {
+                    let prop = app.config.rtpath[rel_prop];
+                    app.config.rtpath[rel_prop] = prop(app.root);
+                }
+            }
+            */
+            q = q.concat(lo.values(app.children));
+        };
+    }());
+    }
+
+    return config;
+}
+
+module.exports = ConfigGenerator;
 
 if (require.main === module) {
     function prettyOutput(name, obj) {
@@ -415,6 +462,8 @@ if (require.main === module) {
         console.log(util.inspect(obj, {depth: null}));
         console.log();
     }
+
+    let config = ConfigGenerator('server');
 
     prettyOutput("config.env_class", config.env_class);
     prettyOutput("config.app", config.app);

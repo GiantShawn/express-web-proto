@@ -2,11 +2,12 @@
 */
 
 require('app-module-path').addPath('.');
-const config = require('config.js');
+const config = require('config')('build');
 const mkdirp = require('mkdirp');
 const assert = require('assert');
 const path = require('path');
 const fs = require('fs');
+const utils = require('utils');
 
 assert (require.main === module);
 
@@ -27,25 +28,24 @@ function setupServerDirectories()
     let repos_p = [];
     // server out dir
     //console.log("serverconfig", config.server.config);
+    const build_config = config.server.config.build;
     let outdir_p = new Promise((rsv, rej) => {
-        mkdirp(config.server.config.build.outdir, (err, made) => {
+        mkdirp(build_config.outdir, (err, made) => {
             if (err) rej(err);
-            else rsv(made && `[New] ${config.server.config.build.outdir}` || `[Exist] ${config.server.config.build.outdir}`);
+            else rsv(made && `[New] ${build_config.outdir}` || `[Exist] ${build_config.outdir}`);
         }); });
 
     repos_p.push(outdir_p);
 
-    let rtpath = config.server.config.rtpath;
-    for (let path_name in rtpath) {
-        if (rtpath.hasOwnProperty(path_name) && path_name.endsWith('_repo')) {
-            let path = rtpath[path_name];
-            repos_p.push(new Promise((rsv, rej) => {
-                mkdirp(path, (err, made) => {
-                    if (err) rej(err);
-                    else rsv(made && `[New] ${path}` || `[Exist] ${path}`);
-                })}));
-        }
+    const paths = utils.flattenIterable(build_config.sta_resdir, build_config.dyn_resdir, build_config.null_dyn_resdir, build_config.routedir);
+    for (let p of paths) {
+        repos_p.push(new Promise((rsv, rej) => {
+            mkdirp(p, (err, made) => {
+                if (err) rej(err);
+                else rsv(made && `[New] ${p}` || `[Exist] ${p}`);
+            })}));
     }
+
 
     return Promise.all(repos_p).then((paths) => {
         console.log("Setup Server Directories Succeed.");
@@ -67,7 +67,7 @@ function buildExpress()
             } else {
                 const webpack = require('webpack');
                 let webpack_config = require(webpack_config_js);
-                console.log("server webpack config", webpack_config);
+                //console.log("server webpack config", webpack_config);
                 let compiler = webpack(webpack_config);
                 compiler.run(function (err, stats) {
                     // compiled

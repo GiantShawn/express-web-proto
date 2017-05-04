@@ -1,13 +1,16 @@
 'use strict';
 
-const config = require('../config.js');
+require('app-module-path').addPath('.');
+const config = require('config')('server');
 const express = require('express');
 const path = require('path');
+const fs = require('fs');
 var server_config = config.server.config;
 
 function WebServer()
 {
-    var server = require('express')();
+    const express = require('express');
+    const server = express();
     server.setupGlobalConfig = function ()
     {
         // view engine setup
@@ -64,7 +67,7 @@ function WebServer()
 
     server.setupRoutes = function ()
     {
-        let route_root = server_config.rtpath.route_repo;
+        //let route_root = server_config.rtpath.route_repo;
         let route_root_rel = server_config.rtpath.route_repo_rel(); // from working dir
         function route_rel(appname) {
             let apppath = appname.replace(/\./g, path.sep);
@@ -82,13 +85,28 @@ function WebServer()
             *       }
             */
 
-            routerdef = require(route_rel(app.name))(prouter);
+            let routerdef;
+            try {
+                let router_js = route_rel(app.name);
+                fs.accessSync(router_js, fs.constants.R_OK);
+                routerdef = require(router_js)(prouter);
+            } catch (e) {
+                ;
+            }finally {
+                if (!routerdef) {
+                    routerdef = {
+                        router: express.Router(),
+                        beforeChildren() {},
+                        afterChildren() {}
+                    }
+                }
+            }
 
             routerdef.beforeChildren();
 
             if (app.children_seq.length) {
                 app.children_seq.forEach((capp) => {
-                    _setupRoute(capp, routerdef.router).bind(this);
+                    _setupRoute.bind(this)(capp, routerdef.router);
                 });
             }
 

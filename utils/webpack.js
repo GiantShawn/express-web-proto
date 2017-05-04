@@ -1,5 +1,5 @@
 const path = require('path');
-const config = require('config');
+const config = require('config')('build');
 const webpack = require('webpack');
 const ExtractTextPlugin = require('extract-text-webpack-plugin');
 
@@ -99,15 +99,21 @@ function NewClientWebpackConfigBase(appname, options = {})
 
 function NewServerWebpackConfigBase(options = {}) 
 {
-    const config = require('config');
     const serverconfig = config.server.config;
     const conf = {
         target: 'node',
+        node : {
+            __dirname: true
+        },
+        resolve: {
+            modules: [config.project_root, path.join(config.project_root, 'node_modules')],
+        },
+        context: config.server.config.build.working_dir,
 		entry: {
 			main: options.entry || path.join(serverconfig.build.indir, 'main.js'),
 		},
 		output: {
-			path: serverconfig.rtpath.srv_repo,
+			path: serverconfig.build.outdir,
 			filename: '[name].js',
 			//publicPath: 'dist/'
 		},
