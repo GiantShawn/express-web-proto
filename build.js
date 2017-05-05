@@ -9,17 +9,19 @@ const path = require('path');
 const fs = require('fs');
 const utils = require('utils');
 
-assert (require.main === module);
+if (require.main === module) {
+    const process = require('process');
+    const argv = require('minimist')(process.argv.slice(2));
 
-const process = require('process');
-const argv = require('minimist')(process.argv.slice(2));
+    const env = argv._.length > 0 && argv._[0] || 'production';
+    config.env_class = env;
 
-const env = argv._.length > 0 && argv._[0] || 'production';
-config.env_class = env;
-
-const rootapp = config.app;
-if (argv.app) {
-    rootapp = config.getApp(argv.app);
+    const rootapp = config.app;
+    if (argv.app) {
+        rootapp = config.getApp(argv.app);
+    }
+} else {
+    config.env_class = 'production'; // by default to be production
 }
 
 
@@ -156,9 +158,9 @@ function buildApp(rootapp)
         //console.log(e.name, e.children_seq, q);
     }
     prom.then(function () {
-        console.log("BUILD APPS SUCCEED!");
+        console.log("|-----  BUILD APPS SUCCEED!");
     }).catch(function (err) {
-        console.log("BUILD APPS FAIL!");
+        console.log("|-----  BUILD APPS FAIL!");
         console.error(err);
     });
 
@@ -180,6 +182,10 @@ const SRV_BUILD_STEPS = [
         buildApp(rootapp).then(res, rej);
     }
 ];
+
+exports.setupServerDirectories = setupServerDirectories;
+exports.buildExpress = buildExpress;
+exports.buildApp = buildApp;
 
 
 if (require.main === module) {
