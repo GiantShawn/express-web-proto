@@ -2,19 +2,20 @@ const path = require('path');
 const config = require('config')('build');
 const webpack = require('webpack');
 const ExtractTextPlugin = require('extract-text-webpack-plugin');
+const fs = require('fs');
 
-function getClientEntryFile()
+function getClientEntryFile(apppath)
 {
-    const candidates = ['./main.js', './main.tsx', './main.ts', './index.js', './index.tsx', './index.ts'];
+    const candidates = ['main.js', 'main.tsx', 'main.ts', 'index.js', 'index.tsx', 'index.ts'].map((v) => path.join(apppath, v));
     for (let c of candidates) {
         try {
             fs.accessSync(c, fs.constants.R_OK);
             return c;
         } catch (e) {
-            ;
+            ;//console.log("Can not read candidate", e);
         }
     }
-    throw Error("Can not get client entry file from candidates:", candidates);
+    throw Error("Can not get client entry file from candidates:" + candidates.toString());
     return null;
 }
 
@@ -27,8 +28,9 @@ function NewClientWebpackConfigBase(apppath, options = {})
     const appconfig = config.getAppByDir(apppath);
 
 	const common_webpack_config_template = {
+        //context: apppath,
 		entry: {
-			main: options.entry || getClientEntryFile(),
+			main: options.entry || getClientEntryFile(apppath),
 		},
 		output: {
 			path: appconfig.config.build.outdir.dyn_js,
@@ -44,7 +46,12 @@ function NewClientWebpackConfigBase(apppath, options = {})
 			rules: [
                 {
                     test: /\.tsx?$/,
-                    use: "awesome-typescript-loader",
+                    use: {
+                        loader: "awesome-typescript-loader",
+                        options: {
+                            configFileName: path.join(apppath, 'tsconfig.json')
+                        }
+                    }
                 },
                 { 
                     enforce: "pre",
@@ -57,7 +64,7 @@ function NewClientWebpackConfigBase(apppath, options = {})
 					use: [{
 						loader: 'babel-loader',
 						options: {
-							presets: ['env']
+							presets: ['env', 'react']
 						}
 					}]
 				},

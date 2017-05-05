@@ -33,7 +33,15 @@ gulp.task('setup-dir', build.setupServerDirectories);
 
 gulp.task('build-express', ['setup-dir'], build.buildExpress);
 
-gulp.task('build-app', ['build-express'], function () {
+gulp.task('setup-externals', function () {
+    let rootapp = config.app;
+    if (argv.app) {
+        rootapp = config.getApp(argv.app);
+    }
+    return build.setupExternals(rootapp);
+});
+
+gulp.task('build-app', ['setup-dir', 'setup-externals'], function () {
     let rootapp = config.app;
     if (argv.app) {
         rootapp = config.getApp(argv.app);
@@ -41,6 +49,8 @@ gulp.task('build-app', ['build-express'], function () {
 
     return build.buildApp(rootapp);
 });
+
+gulp.task('default', ['build-express', 'bulid-app']);
 
 /*
 gulp.task('build-js', function () {

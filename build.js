@@ -74,7 +74,7 @@ function buildExpress()
                 compiler.run(function (err, stats) {
                     // compiled
                     if (err) {
-                        rej(`Webpack server Error!`);
+                        rej('Webpack server Error!');
                     } else {
                         console.log(`Webpack server Succeed!`);
                         res();
@@ -125,6 +125,7 @@ const APP_BUILD_STEPS = [
                         rej(`Webpack app ${app.name} Error!`);
                     } else {
                         console.log(`Webpack app ${app.name} Succeed!`);
+                        console.log(stats.toString());
                         res();
                     }
                 });
@@ -177,8 +178,41 @@ function copyFileAsync(src, dst)
     rs.pipe(fs.createWriteStream(dst));
 }
 
-function setupExternals()
+function setupExternals(rootapp)
 {
+    function _setupExternals(app) {
+        let buildconfig = app.config.build;
+        for (let ftype in buildconfig.externals) {
+            if (buildconfig.outdir[ftype]) {
+                let exts = buildconfig.externals[ftype];
+                let outdir = buildconfig.outdir[ftype];
+                for (let dst in exts) {
+                    let src = exts[dst];
+                    if (src.startsWith('$')) {
+                        // project root
+                        src = __dirname + src.substr(1);
+                    } else if (src.startsWith('./')) {
+                        src = path.join(app.root, src);
+                    }
+
+                    dst = path.join(outdir, dst);
+
+                    copyFileAsync(src, dst);
+                }
+            }
+        }
+    }
+
+
+    let q = [rootapp];
+    while (q.length) {
+        let c = q.shift();
+        q = q.concat(c.children_seq);
+
+        _setupExternals(c); // run simutaneously
+    }
+
+    return Promise.resolve();
 }
 
 const SRV_BUILD_STEPS = [
@@ -192,7 +226,7 @@ const SRV_BUILD_STEPS = [
     },
     /* setup externals */
     function (res, rej) {
-        setupExternals().then(res, rej);
+        setupExternals(rootapp).then(res, rej);
     },
     /* build apps */
     function (res, rej) {
@@ -203,6 +237,7 @@ const SRV_BUILD_STEPS = [
 exports.setupServerDirectories = setupServerDirectories;
 exports.buildExpress = buildExpress;
 exports.buildApp = buildApp;
+exports.setupExternals = setupExternals;
 
 
 if (require.main === module) {

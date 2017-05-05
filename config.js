@@ -36,6 +36,7 @@ const ROOT_APP_R = path.resolve(__dirname, APP_SRC_ROOT);
 
 const lo = require('lodash');
 const debuglog = require('util').debuglog('config');
+const util = require('util');
 
 
 function getAllFiles(root, exts, tps)
@@ -58,7 +59,7 @@ function getAllFiles(root, exts, tps)
 
 function  getBuildFiles(root)
 {
-    let build_config_file = path.join(root, 'build_config.js');
+    let build_config_file = path.join(root, 'config.js');
     let default_build_files = {
         /* -<storage-bid><role-bid>
          * storage-bid: s   static
@@ -91,11 +92,7 @@ function  getBuildFiles(root)
         fs.accessSync(build_config_file, fs.constants.R_OK);
         let build_config = require(build_config_file);
         let file_catalog = build_config.file_catalog;
-        return lo.mergeWith(default_build_files, lo.pick(file_catalog, Object.keys(default_build_files).map(
-            (vn) => {
-                if (vn.startsWith('sta')) return vn.replace('sta', 'static');
-                else if (vn.startsWith('dyn')) return vn.replace('dyn', 'dynamic');
-        })), (dst, src) => {
+        return lo.mergeWith(default_build_files, lo.pick(file_catalog, Object.keys(default_build_files)), (dst, src) => {
             if (lo.isArray(dst)) {
                 assert(lo.isArray(src) || lo.isString(src));
                 return dst.concat(src);
@@ -175,6 +172,7 @@ class AppConfig
                     {
                         route_js: path.join(__global_outdir.route_js, apppath) /* the root of server routes */
                     }),
+                externals: {}
 
             }
         }
@@ -198,7 +196,10 @@ function constructAppConfigTree(root, parent, config_env)
     let app_spec_config = null;
     try {
         app_spec_config = require(path.join(root, 'config.js'));
-    } catch (e) {}
+    } catch (e) {
+        if (e.code !== 'MODULE_NOT_FOUND')
+            console.error(e)
+    }
 
     let app_class = app_spec_config && app_spec_config.app_config_class(AppConfig) || AppConfig;
 

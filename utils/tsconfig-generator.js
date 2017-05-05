@@ -1,3 +1,5 @@
+'use strict';
+
 const config = require('config')('build');
 
 const base = {
@@ -10,12 +12,17 @@ const base = {
     },
     include: [
         "*.ts"
-    ]
+    ],
+    awesomeTypescriptLoaderOptions: {
+        "useBabel": true,
+        "useCache": true
+    }
+
 }
 
 module.exports = function (apppath) {
-    app = config.getAppByDir(apppath);
-    conf = Object.assign({}, base);
+    let app = config.getAppByDir(apppath);
+    let conf = Object.assign({}, base);
 
     conf.compilerOptions.outDir = app.config.build.outdir.dyn_js;
 
