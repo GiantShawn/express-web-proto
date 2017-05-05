@@ -182,17 +182,18 @@ const SRV_BUILD_STEPS = [
 ];
 
 
-/* Start build process */
+if (require.main === module) {
+    /* Start build process */
 
-let prom = Promise.resolve();
-for (let step_func of SRV_BUILD_STEPS) {
-    prom = prom.then(() => new Promise(step_func));
+    let prom = Promise.resolve();
+    for (let step_func of SRV_BUILD_STEPS) {
+        prom = prom.then(() => new Promise(step_func));
+    }
+    prom.then(() => {
+        console.log("BUILD SUCCEED!");
+    }).catch((err) => {
+        console.error("BUILD FAIL");
+        console.error(err);
+    });
+
 }
-prom.then(() => {
-    console.log("BUILD SUCCEED!");
-}).catch((err) => {
-    console.error("BUILD FAIL");
-    console.error(err);
-});
-
-
