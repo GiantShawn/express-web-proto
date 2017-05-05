@@ -16,7 +16,7 @@ if (require.main === module) {
     const env = argv._.length > 0 && argv._[0] || 'production';
     config.env_class = env;
 
-    const rootapp = config.app;
+    var rootapp = config.app;
     if (argv.app) {
         rootapp = config.getApp(argv.app);
     }
@@ -168,6 +168,19 @@ function buildApp(rootapp)
 
 }
 
+function copyFileAsync(src, dst)
+{
+    let rs = fs.createReadStream(src);
+    rs.once('error', function (err) {
+        console.error(`Fail to copy file[${src}] to [${dst}]`);
+    });
+    rs.pipe(fs.createWriteStream(dst));
+}
+
+function setupExternals()
+{
+}
+
 const SRV_BUILD_STEPS = [
     /* setup directories */
     function (res, rej) {
@@ -177,10 +190,14 @@ const SRV_BUILD_STEPS = [
     function (res, rej) {
         buildExpress().then(res, rej);
     },
+    /* setup externals */
+    function (res, rej) {
+        setupExternals().then(res, rej);
+    },
     /* build apps */
     function (res, rej) {
         buildApp(rootapp).then(res, rej);
-    }
+    },
 ];
 
 exports.setupServerDirectories = setupServerDirectories;

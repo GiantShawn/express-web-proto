@@ -3,25 +3,54 @@ const config = require('config')('build');
 const webpack = require('webpack');
 const ExtractTextPlugin = require('extract-text-webpack-plugin');
 
-function NewClientWebpackConfigBase(appname, options = {})
+function getClientEntryFile()
+{
+    const candidates = ['./main.js', './main.tsx', './main.ts', './index.js', './index.tsx', './index.ts'];
+    for (let c of candidates) {
+        try {
+            fs.accessSync(c, fs.constants.R_OK);
+            return c;
+        } catch (e) {
+            ;
+        }
+    }
+    throw Error("Can not get client entry file from candidates:", candidates);
+    return null;
+}
+
+function NewClientWebpackConfigBase(apppath, options = {})
 {
 	/* options:
 	*   entry: './main.js'
 		*   publicPath: '/'
 		*/
-    const appconfig = config.getApp(appname);
+    const appconfig = config.getAppByDir(apppath);
 
 	const common_webpack_config_template = {
 		entry: {
-			main: options.entry || './main.js',
+			main: options.entry || getClientEntryFile(),
 		},
 		output: {
 			path: appconfig.config.build.outdir.dyn_js,
-			filename: '[name]-[chunhash].js',
+			//filename: '[name]-[chunhash].js',
+            filename: '[name].js',
 			//publicPath: 'dist/'
+		},
+		resolve: {
+			// Add '.ts' and '.tsx' as resolvable extensions.
+			extensions: [".ts", ".tsx", ".js", ".json"]
 		},
 		module: {
 			rules: [
+                {
+                    test: /\.tsx?$/,
+                    use: "awesome-typescript-loader",
+                },
+                { 
+                    enforce: "pre",
+                    test: /\.js$/,
+                    use: "source-map-loader",
+                },
 				{
 					test: /\.js$/,
 					exclude: /node_modules/,
@@ -58,11 +87,7 @@ function NewClientWebpackConfigBase(appname, options = {})
 				},
 				{
 					test: /\.txt$/,
-					use: [
-						{
-							loader: 'raw-loader'
-						}
-					]
+					use: 'raw-loader'
 				},
 				{
 					test: /\.html/,
@@ -80,6 +105,16 @@ function NewClientWebpackConfigBase(appname, options = {})
 				},
 			]
 		},
+
+		// When importing a module whose path matches one of the following, just
+		// assume a corresponding global variable exists and use that instead.
+		// This is important because it allows us to avoid bundling all of our
+		// dependencies, which allows browsers to cache those libraries between builds.
+		externals: {
+			"react": "React",
+			"react-dom": "ReactDOM"
+		},
+
 		plugins: [
 			new ExtractTextPlugin('style.css'),
 			new webpack.LoaderOptionsPlugin({
@@ -93,6 +128,10 @@ function NewClientWebpackConfigBase(appname, options = {})
 		],
 
 	};
+
+    if (config.env_class !== 'production') {
+        common_webpack_config_template.devtool = 'source-map';
+    }
 
 	return common_webpack_config_template;
 }

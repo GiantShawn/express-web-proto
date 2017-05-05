@@ -55,6 +55,58 @@ function getAllFiles(root, exts, tps)
 
     return files;
 }
+
+function  getBuildFiles(root)
+{
+    let build_config_file = path.join(root, 'build_config.js');
+    let default_build_files = {
+        /* -<storage-bid><role-bid>
+         * storage-bid: s   static
+         *              d   dynamic
+         *              v   server
+         * role-bid(with storage-bid==server): 
+         *              l   server logic
+         *              r   route
+         */
+        // client files
+        sta_css:    getAllFiles(root, 'css', 's'),
+        dyn_css:    getAllFiles(root, 'css', 'd'),
+        //sta_sass:   getAllFiles(this.root, ['scss'], 's'),
+        dyn_sass:   getAllFiles(root, 'scss', 'd'),
+        sta_html:   getAllFiles(root, 'html', 's'),
+        dyn_html:   getAllFiles(root, 'html', 'd'),
+        sta_js:     getAllFiles(root, 'js', 's'),
+        dyn_js:     getAllFiles(root, 'js', 'd'),
+        sta_ts:     getAllFiles(root, ['ts', 'tsx'], 's'),
+        dyn_ts:     getAllFiles(root, ['ts', 'tsx'], 'd'),
+        sta_pug:    getAllFiles(root, 'pug', 's'), // all goes through webpack that generate html
+        dyn_pug:    getAllFiles(root, 'pug', 'd'),
+
+        // server files (always 'dynamic')
+        srv_js:     getAllFiles(root, 'js', 'vl'),
+        route_js:   getAllFiles(root, 'js', 'vr'),
+    };
+    //console.log("getBuildFiles", root, default_build_files);
+    try {
+        fs.accessSync(build_config_file, fs.constants.R_OK);
+        let build_config = require(build_config_file);
+        let file_catalog = build_config.file_catalog;
+        return lo.mergeWith(default_build_files, lo.pick(file_catalog, Object.keys(default_build_files).map(
+            (vn) => {
+                if (vn.startsWith('sta')) return vn.replace('sta', 'static');
+                else if (vn.startsWith('dyn')) return vn.replace('dyn', 'dynamic');
+        })), (dst, src) => {
+            if (lo.isArray(dst)) {
+                assert(lo.isArray(src) || lo.isString(src));
+                return dst.concat(src);
+            }
+            return src;
+        });
+    } catch (e) {
+        return default_build_files;
+    }
+}
+
 const __global_outdir = (function () {
     let sta_repo = path.join(ROOT_R, STATIC_ROOT);
     let dyn_repo = path.join(ROOT_R, DYNAMIC_ROOT);
@@ -92,6 +144,7 @@ function getAllAppsDirs(config, prefix)
     let q = [config.app];
     while (q.length) {
         let app = q.shift();
+        //console.log("Dir", app);
         let paths_obj = app.config.build.outdir;
         for (let p in paths_obj) {
             if (p.startsWith(prefix)) {
@@ -115,32 +168,9 @@ class AppConfig
         this.config =  {}
         
         if (config_env === 'build') {
+            let all_build_files = getBuildFiles(this.root);
             this.config.build = {
-                infiles: {
-                    /* -<storage-bid><role-bid>
-                     * storage-bid: s   static
-                     *              d   dynamic
-                     *              v   server
-                     * role-bid(with storage-bid==server): 
-                     *              l   server logic
-                     *              r   route
-                     */
-                    // client files
-                    sta_css:    getAllFiles(this.root, 'css', 's'),
-                    dyn_css:    getAllFiles(this.root, 'css', 'd'),
-                    //sta_sass:   getAllFiles(this.root, ['scss'], 's'),
-                    dyn_sass:   getAllFiles(this.root, 'scss', 'd'),
-                    sta_html:   getAllFiles(this.root, 'html', 's'),
-                    dyn_html:   getAllFiles(this.root, 'html', 'd'),
-                    sta_js:     getAllFiles(this.root, 'js', 's'),
-                    dyn_js:     getAllFiles(this.root, 'js', 'd'),
-                    sta_pug:    getAllFiles(this.root, 'pug', 's'), // all goes through webpack that generate html
-                    dyn_pug:    getAllFiles(this.root, 'pug', 'd'),
-
-                    // server files (always 'dynamic')
-                    srv_js:     getAllFiles(this.root, 'js', 'vl'),
-                    route_js:   getAllFiles(this.root, 'js', 'vr'),
-                },
+                infiles: all_build_files,
                 outdir: lo.assign({}, __global_outdir,
                     {
                         route_js: path.join(__global_outdir.route_js, apppath) /* the root of server routes */
@@ -175,7 +205,7 @@ function constructAppConfigTree(root, parent, config_env)
     let app = new app_class(apppath, parent, config_env);
     let children = fs.readdirSync(root).map((fname) => {
         let real_path = path.join(root, fname);
-        if (fs.statSync(real_path).isDirectory() && !fname.startsWith('_')) {
+        if (fs.statSync(real_path).isDirectory() && fname.startsWith('app-')) {
             return constructAppConfigTree(real_path, app, config_env);
         } else {
             return null;
@@ -187,7 +217,7 @@ function constructAppConfigTree(root, parent, config_env)
     for (let c of children) {
         app.children[c.name.substr(app.name.length+1)] = c;
     }
-    children.sort((a, b) => { return (a.hasOwnProperty('priority') && a.priority || 100) - (b.hasOwnPriority('priority') && b.priority || 100); });
+    children.sort((a, b) => { return (a.hasOwnProperty('priority') && a.priority || 100) - (b.hasOwnProperty('priority') && b.priority || 100); });
     app.children_seq = children;
 
     return app;
@@ -463,7 +493,7 @@ if (require.main === module) {
         console.log();
     }
 
-    let config = ConfigGenerator('server');
+    let config = ConfigGenerator('build');
 
     prettyOutput("config.env_class", config.env_class);
     prettyOutput("config.app", config.app);
