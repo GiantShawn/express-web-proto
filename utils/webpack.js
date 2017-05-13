@@ -1,8 +1,11 @@
 const path = require('path');
+const fs = require('fs');
+const lo = require('lodash');
 const config = require('config')('build');
 const webpack = require('webpack');
 const ExtractTextPlugin = require('extract-text-webpack-plugin');
-const fs = require('fs');
+const NodeExternals = require('webpack-node-externals');
+const WebpackDiskPlugin = require('webpack-disk-plugin');
 
 function getClientEntryFile(apppath)
 {
@@ -27,8 +30,72 @@ function NewClientWebpackConfigBase(apppath, options = {})
 		*/
     const appconfig = config.getAppByDir(apppath);
 
+    const CommonPlugins = function () {
+        return [
+			new ExtractTextPlugin('style.css'),
+			new webpack.LoaderOptionsPlugin({
+				// test: /\.xxx$/, // may apply this only for some modules
+				options: {
+					//htmlLoader: {
+						//attrs: ['img:src', 'link:href'],
+					//}
+				}
+			}),
+            new webpack.NoErrorsPlugin(), // used to handle errors more cleanly
+        ];
+    }
+
+    const CommonDebugPlugins = function () {
+        let plugins = [];
+        if (config.env_class !== 'production') {
+            plugins.push(new webpack.NamedModulesPlugin());
+
+            if (config.env_class === 'debug') {
+                // Enable the plugin to let webpack communicate changes
+                // to WDS. --hot sets this automatically!
+                plugins.push(new webpack.HotModuleReplacementPlugin());
+            }
+        }
+        return plugins;
+    }
+
+    const TailPlugins = function () {
+        return [
+            new WebpackDiskPlugin({
+                /*
+					https://www.npmjs.com/package/webpack-disk-plugin
+					OPTIONS
+					 * output.path: The base directory to write assets to. (Default: ".").
+					 * files: An array of objects to map an asset to a file path
+
+					The files array is composed of objects of the form:
+
+					 * asset: A regex or string to match the name in the webpack compiler. Note that
+					   something like [hash].main.js will be fully expanded to something like
+					   e49186041feacefb583b.main.js.
+					 * output: An object with additional options: * path: Override the top-level output.path directory to write too.
+						* filename: A specified filename to write to. Can be a straight string or a
+						  function that gets the asset name to further mutate. Also may be a single
+						  filename, a relative path to append to the base path, or an absolute path.
+				*/
+                output: {
+                    path: "build"
+                },
+                files: [
+                    { asset: "stats.json" },
+                    { asset: /[a-f0-9]{20}\.main\.js/, output: { filename: "file.js" } }
+                ]
+            }),
+        ];
+    }
+
+    const TailDebugPlugins = function () {
+        return [];
+    }
+
+
 	const common_webpack_config_template = {
-        //context: apppath,
+        context: apppath,
 		entry: {
 			main: options.entry || getClientEntryFile(apppath),
 		},
@@ -36,7 +103,7 @@ function NewClientWebpackConfigBase(apppath, options = {})
 			path: appconfig.config.build.outdir.dyn_js,
 			//filename: '[name]-[chunhash].js',
             filename: '[name].js',
-			//publicPath: 'dist/'
+			publicPath: appconfig.config.pubroot,
 		},
 		resolve: {
 			// Add '.ts' and '.tsx' as resolvable extensions.
@@ -102,11 +169,16 @@ function NewClientWebpackConfigBase(apppath, options = {})
 						{
 							loader: 'file-loader',
 							options: {
-								name: '[path][name].[ext]',
+								name: '../html/[name].[ext]',
 							}
 
 						},
-						'extract-loader',
+                        {
+                            loader: 'extract-loader',
+                            options: {
+                                publicPath: '../javascripts'
+                            }
+                        },
 						"html-loader",
 					]
 				},
@@ -122,22 +194,35 @@ function NewClientWebpackConfigBase(apppath, options = {})
 			"react-dom": "ReactDOM"
 		},
 
-		plugins: [
-			new ExtractTextPlugin('style.css'),
-			new webpack.LoaderOptionsPlugin({
-				// test: /\.xxx$/, // may apply this only for some modules
-				options: {
-					htmlLoader: {
-						//attrs: ['img:src', 'link:href'],
-					}
-				}
-			}),
-		],
+        devServer: {
+			// Don't refresh if hot loading fails. Good while
+			// implementing the client interface.
+			//hotOnly: true,
+
+            // If you want to refresh on errors too, set
+            hot: true,
+        },
+
+		plugins: [].concat(
+            CommonPlugins(),
+            CommonDebugPlugins(),
+            TailPlugins(),
+            TailDebugPlugins()
+        ).filter((o)=>!lo.isEmpty(o)),
+
+		stats: {
+			colors: true,
+			modules: true,
+			reasons: true,
+			errorDetails: true
+		},
 
 	};
 
+
     if (config.env_class !== 'production') {
-        common_webpack_config_template.devtool = 'source-map';
+        //common_webpack_config_template.devtool = 'source-map';
+        common_webpack_config_template.devtool = 'inline-source-map';
     }
 
 	return common_webpack_config_template;
@@ -148,8 +233,9 @@ function NewServerWebpackConfigBase(options = {})
     const serverconfig = config.server.config;
     const conf = {
         target: 'node',
-        node : {
-            __dirname: true
+        node: {
+            __dirname: true,
+            __filename: true,
         },
         resolve: {
             modules: [config.project_root, path.join(config.project_root, 'node_modules')],
@@ -161,7 +247,7 @@ function NewServerWebpackConfigBase(options = {})
 		output: {
 			path: serverconfig.build.outdir,
 			filename: '[name].js',
-			//publicPath: 'dist/'
+			publicPath: serverconfig.build.outdir,
 		},
 		module: {
 			rules: [
@@ -185,8 +271,50 @@ function NewServerWebpackConfigBase(options = {})
 				},
 			]
 		},
-		//plugins: [
-		//],
+
+        devtool: 'source-map', // in production should this line be removed
+        
+		externals: [
+            /* https://www.npmjs.com/package/webpack-node-externals
+				CONFIGURATION
+				This library accepts an options object.
+
+				 [#OPTIONSWHITELIST-]OPTIONS.WHITELIST (=[])
+				An array for the externals to whitelist, so they will be included in the bundle.
+				Can accept exact strings ('module_name'), regex patterns (/^module_name/), or a
+				function that accepts the module name and returns whether it should be included.
+				Important - if you have set aliases in your webpack config with the exact same
+				names as modules in node_modules, you need to whitelist them so Webpack will
+				know they should be bundled.
+
+				 [#OPTIONSIMPORTTYPE-COMMONJS]OPTIONS.IMPORTTYPE (='COMMONJS')
+				The method in which unbundled modules will be required in the code. Best to
+				leave as commonjs for node modules.
+
+				 [#OPTIONSMODULESDIR-NODE_MODULES]OPTIONS.MODULESDIR (='NODE_MODULES')
+				The folder in which to search for the node modules.
+
+				 [#OPTIONSMODULESFROMFILE-FALSE]OPTIONS.MODULESFROMFILE (=FALSE)
+				Read the modules from the package.json file instead of the node_modules folder.
+            */
+            NodeExternals({
+			// this WILL include `jquery` and `webpack/hot/dev-server` in the bundle, as well as `lodash/*` 
+			whitelist: ['jquery', 'webpack/hot/dev-server', 'webpack/hot/only-dev-server', /^lodash/]
+		})],
+
+		plugins: [
+            // http://jlongster.com/Backend-Apps-with-Webpack--Part-I
+			//new webpack.BannerPlugin({
+                //banner: 'require("source-map-support").install();', raw: true, entryOnly: false
+            //}),
+            new webpack.IgnorePlugin(/\.(css|less)$/),
+		],
+		stats: {
+			colors: true,
+			modules: true,
+			reasons: true,
+			errorDetails: true
+		},
 
 	};
     return conf;

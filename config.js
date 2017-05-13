@@ -19,6 +19,7 @@ const STATIC_ROOT = path.join(SERVER_OUT, 'static');
 const DYNAMIC_ROOT= path.join(SERVER_OUT, 'dynamic');
 const SERVER_ROOT = path.join(SERVER_OUT, 'server');
 const SERVER_ROOT_R = path.join(ROOT_R, SERVER_ROOT);
+const PUB_DYNAMIC_ROOT = 'dynamic';
 
 const HTML_DIR_NAME   = 'html';
 const JS_DIR_NAME     = 'javascripts';
@@ -33,6 +34,8 @@ const ROUTE_DIR_NAME  = 'routes';
 
 
 const ROOT_APP_R = path.resolve(__dirname, APP_SRC_ROOT);
+const ROUTE_REPO_R = path.join(SERVER_ROOT_R, ROUTE_DIR_NAME);
+const ROUTE_REPO_APP_R = path.join(ROUTE_REPO_R, APP_SRC_ROOT);
 
 const lo = require('lodash');
 const debuglog = require('util').debuglog('config');
@@ -109,8 +112,8 @@ const __global_outdir = (function () {
     let dyn_repo = path.join(ROOT_R, DYNAMIC_ROOT);
     let null_dyn_repo = path.join(ROOT_R, NULL_SERVER_OUT);
 
-    let srv_repo = path.join(ROOT_R, SERVER_ROOT);
-    let route_repo = path.join(srv_repo, ROUTE_DIR_NAME);
+    let srv_repo = SERVER_ROOT_R
+    let route_repo = ROUTE_REPO_R
 
     return {
         sta_repo:   sta_repo,
@@ -172,6 +175,7 @@ class AppConfig
                     {
                         route_js: path.join(__global_outdir.route_js, apppath) /* the root of server routes */
                     }),
+                pubroot: PUB_DYNAMIC_ROOT,
                 externals: {}
 
             }
@@ -184,9 +188,9 @@ class AppConfig
 };
 
 
-function constructAppConfigTree(root, parent, config_env)
+function constructAppConfigTree(root, approot, parent, config_env)
 {
-    let apppath = root.substr(ROOT_R.length);
+    let apppath = approot.substr(root.length);
     if (apppath[0] === '/') {
         apppath = apppath.substr(1);
     }
@@ -195,7 +199,7 @@ function constructAppConfigTree(root, parent, config_env)
 
     let app_spec_config = null;
     try {
-        app_spec_config = require(path.join(root, 'config.js'));
+        app_spec_config = require(path.join(approot, 'config.js'));
     } catch (e) {
         if (e.code !== 'MODULE_NOT_FOUND')
             console.error(e)
@@ -204,10 +208,10 @@ function constructAppConfigTree(root, parent, config_env)
     let app_class = app_spec_config && app_spec_config.app_config_class(AppConfig) || AppConfig;
 
     let app = new app_class(apppath, parent, config_env);
-    let children = fs.readdirSync(root).map((fname) => {
-        let real_path = path.join(root, fname);
+    let children = fs.readdirSync(approot).map((fname) => {
+        let real_path = path.join(approot, fname);
         if (fs.statSync(real_path).isDirectory() && fname.startsWith('app-')) {
-            return constructAppConfigTree(real_path, app, config_env);
+            return constructAppConfigTree(root, real_path, app, config_env);
         } else {
             return null;
         }
@@ -454,9 +458,9 @@ function ConfigGenerator(config_env) {
             
     };
     if (config_env === 'build') {
-        config.app = constructAppConfigTree(ROOT_APP_R, null, config_env);
+        config.app = constructAppConfigTree(ROOT_R, ROOT_APP_R, null, config_env);
     } else if (config_env == 'server') {
-        config.app = constructAppConfigTree(__global_outdir.route_js, null, config_env);
+        config.app = constructAppConfigTree(ROUTE_REPO_R, ROUTE_REPO_APP_R, null, config_env);
     }
     config.server = new ServerConfig(config, config_env);
 
@@ -494,7 +498,7 @@ if (require.main === module) {
         console.log();
     }
 
-    let config = ConfigGenerator('build');
+    let config = ConfigGenerator('server');
 
     prettyOutput("config.env_class", config.env_class);
     prettyOutput("config.app", config.app);

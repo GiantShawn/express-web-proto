@@ -8,10 +8,12 @@ const base = {
         "noImplicitAny": true,
         "module": "commonjs",
         "target": "es5",
-        "jsx": "react"
+        "jsx": "react",
+        "allowJs": true,
     },
     include: [
-        "*.ts"
+        "*.ts",
+        "*.tsx"
     ],
     awesomeTypescriptLoaderOptions: {
         "useBabel": true,

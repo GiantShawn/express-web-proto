@@ -5,6 +5,7 @@ const config = require('config')('server');
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
+const webpack = require('webpack');
 var server_config = config.server.config;
 
 function WebServer()
@@ -43,6 +44,15 @@ function WebServer()
             this.use(express.static(server_config.rtpath.sta_html_repo));
         }
         this.use(express.static(server_config.rtpath.dyn_html_repo));
+
+        if (config.env_class === 'debug') {
+            const compiler = webpack(require('./webpack.config'));
+			//https://www.npmjs.com/package/webpack-hot-middleware
+            this.use(require("webpack-dev-middleware")(compiler, {
+                    noInfo: true, publicPath: webpackConfig.output.publicPath
+            }));
+            this.use(require("webpack-hot-middleware")(compiler));
+        }
     }
 
     server.setupErrorHandler = function () {
@@ -88,17 +98,20 @@ function WebServer()
             let routerdef;
             try {
                 let router_js = route_rel(app.name);
+                console.log("Gonna setup router for ", app.name, router_js);
                 fs.accessSync(router_js, fs.constants.R_OK);
                 routerdef = require(router_js)(prouter);
+                console.log("Got routerdef", routerdef);
             } catch (e) {
-                ;
-            }finally {
+                console.log(e);
+            } finally {
                 if (!routerdef) {
                     routerdef = {
                         router: express.Router(),
                         beforeChildren() {},
                         afterChildren() {}
                     }
+                    prouter.use('/', routerdef.router);
                 }
             }
 

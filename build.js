@@ -132,6 +132,30 @@ const APP_BUILD_STEPS = [
             }
         });
     },
+    /* app routes */
+    function (app, res, rej) {
+        let route_files = app.config.build.infiles.route_js;
+        let pro = [];
+        for (let route_file of route_files) {
+            let out_route_file;
+            if (route_file.includes('index'))
+                out_route_file = 'index.js';
+            else
+                out_route_file = path.basename(route_file);
+
+            pro.push(new Promise(function (res, rej) {
+                fs.access(route_file, fs.constants.R_OK, function (err) {
+                    if (err) {
+                        rej(`Fail to copy router file[${route_file}] for app[${app.name}]!`);
+                    } else {
+                        copyFileAsync(route_file, path.join(app.config.build.outdir.route_js, out_route_file));
+                        res();
+                    }
+                });
+            }));
+        }
+        Promise.all(pro).then(res, rej)
+    }
 ]
 
 function buildApp(rootapp)
