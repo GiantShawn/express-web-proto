@@ -41,7 +41,14 @@ function NewClientWebpackConfigBase(apppath, options = {})
 					//}
 				}
 			}),
-            new webpack.NoErrorsPlugin(), // used to handle errors more cleanly
+            new webpack.DefinePlugin({
+                /* https://webpack.js.org/guides/production-build/
+                */
+                'process.env': {
+                    'NODE_ENV': JSON.stringify('production')
+                }
+            }),
+            //new webpack.NoErrorsPlugin(), // used to handle errors more cleanly
         ];
     }
 
@@ -54,6 +61,19 @@ function NewClientWebpackConfigBase(apppath, options = {})
                 // Enable the plugin to let webpack communicate changes
                 // to WDS. --hot sets this automatically!
                 plugins.push(new webpack.HotModuleReplacementPlugin());
+                plugins.push(new webpack.DefinePlugin({
+                    'process.env': {
+                        'NODE_ENV': JSON.stringify('debug')
+                    }
+                }));
+            } else if (config.env_class === 'webpack-debug') {
+                plugins.push(new webpack.DefinePlugin({
+                    'process.env': {
+                        'NODE_ENV': JSON.stringify('webpack-debug')
+                    }
+                }));
+            } else {
+                assert (false);
             }
         }
         return plugins;
@@ -93,14 +113,25 @@ function NewClientWebpackConfigBase(apppath, options = {})
         return [];
     }
 
+    let entry;
+    const normalizeEntry = function (e) { return (e.charAt(0) === path.sep && e || path.join(apppath, e)); }
+    if (options.entry) {
+        if (lo.isObject(options.entry)) {
+            entry = lo.mapValues(options.entry, normalizeEntry);
+        } else if (lo.isArray(options.entry)) {
+            entry = options.entry.map(normalizeEntry);
+        } else {
+            entry = normalizeEntry(options.entry);
+        }
+    } else {
+        entry = getClientEntryFile(apppath);
+    }
 
 	const common_webpack_config_template = {
         context: apppath,
-		entry: {
-			main: options.entry || getClientEntryFile(apppath),
-		},
+		entry: entry,
 		output: {
-			path: appconfig.config.build.outdir.dyn_js,
+			path: appconfig.config.build.outdir.dyn_repo,
 			//filename: '[name]-[chunhash].js',
             filename: '[name].js',
 			publicPath: appconfig.config.pubroot,
@@ -201,6 +232,16 @@ function NewClientWebpackConfigBase(apppath, options = {})
 
             // If you want to refresh on errors too, set
             hot: true,
+
+			//inline: false,
+			contentBase: config.server.config.build.dyn_repo,
+			// match the output path
+
+			publicPath: appconfig.config.pubroot,
+			// match the output `publicPath`
+
+			host: '0.0.0.0',
+			public: 'd.shawnli.org:8080',
         },
 
 		plugins: [].concat(
@@ -304,9 +345,9 @@ function NewServerWebpackConfigBase(options = {})
 
 		plugins: [
             // http://jlongster.com/Backend-Apps-with-Webpack--Part-I
-			//new webpack.BannerPlugin({
-                //banner: 'require("source-map-support").install();', raw: true, entryOnly: false
-            //}),
+			new webpack.BannerPlugin({
+                banner: 'require("source-map-support").install();', raw: true, entryOnly: false
+            }),
             new webpack.IgnorePlugin(/\.(css|less)$/),
 		],
 		stats: {

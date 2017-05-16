@@ -3,3 +3,6 @@
 node_modules/*
 npm-debug.log
 tsconfig.json
+.apps_definition.json
+server/router_definition.js
+.awcache

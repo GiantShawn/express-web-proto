@@ -6,21 +6,6 @@
     "start": "cd dist; node server/main.js",
     "dev": "nodemon --watch webpack.config.js --exec 'webpack-dev-server --env development'"
   },
-  "babel": {
-    "presets": [
-      [
-        "env",
-        {
-          "targets": {
-            "node": "current"
-          },
-          "debug": true,
-          "modules": false
-        }
-      ],
-      "react"
-    ]
-  },
   "dependencies": {
     "@types/lodash": "^4.14.64",
     "@types/react": "^15.0.23",

@@ -1,6 +1,7 @@
 'use strict';
 
 const config = require('config')('build');
+const path = require('path');
 
 const base = {
     compilerOptions: {
@@ -17,7 +18,8 @@ const base = {
     ],
     awesomeTypescriptLoaderOptions: {
         "useBabel": true,
-        "useCache": true
+        "useCache": true,
+        "babelCore": path.join(config.project_root, 'node_modules', 'babel-core'), // used by webpack local mode
     }
 
 }

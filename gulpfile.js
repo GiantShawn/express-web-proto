@@ -50,7 +50,7 @@ gulp.task('build-app', ['setup-dir', 'setup-externals'], function () {
     return build.buildApp(rootapp);
 });
 
-gulp.task('default', ['build-express', 'bulid-app']);
+gulp.task('default', ['build-express', 'build-app']);
 
 /*
 gulp.task('build-js', function () {

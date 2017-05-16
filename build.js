@@ -2,27 +2,49 @@
 */
 
 require('app-module-path').addPath('.');
-const config = require('config')('build');
-const mkdirp = require('mkdirp');
 const assert = require('assert');
+const mkdirp = require('mkdirp');
 const path = require('path');
 const fs = require('fs');
 const utils = require('utils');
+const lo = require('lodash');
+//assert (require.main === module);
 
-if (require.main === module) {
-    const process = require('process');
-    const argv = require('minimist')(process.argv.slice(2));
+var argv;
+if (require.main === module)
+    argv = require('minimist')(process.argv.slice(2));
+else
+    argv = null;
 
-    const env = argv._.length > 0 && argv._[0] || 'production';
-    config.env_class = env;
+//const build_target = argv._[0];
+var config;
+
+function setBuildEnv(env)
+{
+    console.log(`BUILD in ENV: [${env}]`);
+    assert(lo.includes(['production', 'debug', 'webpack-debug'], env));
+    process.env.NODE_ENV = env;
+}
+
+if (argv) {
+    setBuildEnv(argv.env || 'debug');
+
+    config = require('config')('build');
 
     var rootapp = config.app;
     if (argv.app) {
         rootapp = config.getApp(argv.app);
     }
-} else {
-    config.env_class = 'production'; // by default to be production
 }
+
+function initBuild(env)
+{
+    setBuildEnv(env);
+    config = require('config')('build');
+}
+
+exports.initBuild = initBuild;
+
 
 
 function setupServerDirectories()
@@ -39,7 +61,7 @@ function setupServerDirectories()
 
     repos_p.push(outdir_p);
 
-    const paths = utils.flattenIterable(build_config.sta_resdir, build_config.dyn_resdir, build_config.null_dyn_resdir, build_config.routedir);
+    const paths = utils.flattenIterable(build_config.sta_resdir, build_config.dyn_resdir, build_config.null_dyn_resdir);
     for (let p of paths) {
         repos_p.push(new Promise((rsv, rej) => {
             mkdirp(p, (err, made) => {
@@ -61,26 +83,80 @@ function setupServerDirectories()
 
 function buildExpress()
 {
+    const autodo = require('async/auto');
     return new Promise((res, rej) => {
-        let webpack_config_js = path.join(config.server.config.build.indir, 'webpack.config.js');
-        fs.access(webpack_config_js, fs.constants.R_OK, function (err) {
-            if (err) {
-                rej("No webpack.config.js found for server build");
-            } else {
-                const webpack = require('webpack');
-                let webpack_config = require(webpack_config_js);
-                //console.log("server webpack config", webpack_config);
-                let compiler = webpack(webpack_config);
-                compiler.run(function (err, stats) {
-                    // compiled
-                    if (err) {
-                        rej('Webpack server Error!');
+        autodo({
+            out_router_def: function (cb) {
+                const header = 
+`'use strict';
+module.exports = function (app) {
+`;
+                const tail = '\n}';
+
+                let content = '';
+                let app = config.app;
+                //const app_path_root = path.join('..', config.app.root);
+                //console.log('app_path_root', app_path_root);
+                let q = [app];
+                while (q.length) {
+                    let c = q.shift();
+                    const appname = c.name.split('.').slice(1);
+                    const apppath = c.apppath;
+                    let router_def_file = c.config.build.infiles.router_js;
+                    if (!router_def_file) {
+                        for (let p of ['router.ts', 'router.js']) {
+                            try {
+                                fs.accessSync(path.join(apppath, p), fs.constants.R_OK);
+                            } catch (e) {
+                                continue;
+                            }
+                            router_def_file = p;
+                            break;
+                        }
+                    }
+
+                    if (!router_def_file) {
+                        console.log(`No router definition is found for app[${c.name}]`);
+                        content += 'app' + appname.map((n) => ".children['" + n + "']") + '.router_module = null;\n';
                     } else {
-                        console.log(`Webpack server Succeed!`);
-                        res();
+                        content += 'app' + appname.map((n) => ".children['" + n + "']");
+                        content += path.join('.router_module = require("..', c.apppath, `${router_def_file}");\n`);
+                    }
+                    q = q.concat(c.children_seq);
+                }
+
+                fs.writeFileSync(config.server.config.build.router_def, header + content + tail);
+                cb(null);
+                return;
+            },
+            out_apps_def: function (cb) {
+                fs.writeFile(config.apps_def, JSON.stringify(config.app.toRuntimeJSON()), cb);
+            },
+            webpack: ['out_router_def', 'out_apps_def', function (result, cb) {
+                let webpack_config_js = path.join(config.server.config.build.indir, 'webpack.config.js');
+                fs.access(webpack_config_js, fs.constants.R_OK, function (err) {
+                    if (err) {
+                        cb("No webpack.config.js found for server build");
+                    } else {
+                        const webpack = require('webpack');
+                        let webpack_config = require(webpack_config_js);
+                        //console.log("server webpack config", webpack_config);
+                        let compiler = webpack(webpack_config);
+                        compiler.run(function (err, stats) {
+                            // compiled
+                            if (err) {
+                                cb('Webpack server Error!');
+                            } else {
+                                console.log(`Webpack server Succeed!`);
+                                cb(null);
+                            }
+                        });
                     }
                 });
-            }
+            }],
+        }, (err, result) => {
+            if (err) rej(err);
+            else res();
         });
     });
 }
@@ -117,7 +193,7 @@ const APP_BUILD_STEPS = [
                 console.log(`Can not open webpack.config.js for app [${app.name}].`);
                 res();
             } else {
-                let webpack_config = require(webpack_config_js);
+                let webpack_config = require(webpack_config_js)({env: config.env_class, bmode: 'global'});
                 let compiler = webpack(webpack_config);
                 compiler.run(function (err, stats) {
                     // compiled
@@ -132,30 +208,6 @@ const APP_BUILD_STEPS = [
             }
         });
     },
-    /* app routes */
-    function (app, res, rej) {
-        let route_files = app.config.build.infiles.route_js;
-        let pro = [];
-        for (let route_file of route_files) {
-            let out_route_file;
-            if (route_file.includes('index'))
-                out_route_file = 'index.js';
-            else
-                out_route_file = path.basename(route_file);
-
-            pro.push(new Promise(function (res, rej) {
-                fs.access(route_file, fs.constants.R_OK, function (err) {
-                    if (err) {
-                        rej(`Fail to copy router file[${route_file}] for app[${app.name}]!`);
-                    } else {
-                        copyFileAsync(route_file, path.join(app.config.build.outdir.route_js, out_route_file));
-                        res();
-                    }
-                });
-            }));
-        }
-        Promise.all(pro).then(res, rej)
-    }
 ]
 
 function buildApp(rootapp)

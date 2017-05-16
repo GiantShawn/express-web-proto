@@ -6,36 +6,38 @@ const path = require('path');
 const process = require('process');
 const assert = require('assert');
 
-const NODE_ENV = process.env.NODE_ENV || 'production';
-
-const ROOT_R     = path.resolve(__dirname);
+/* Server source directories */
 const SERVER_SRC_ROOT = 'server';
 const APP_SRC_ROOT    = 'apps';
 
+/* Build output root directory */
 const SERVER_OUT      = 'dist';
 const NULL_SERVER_OUT = path.join(SERVER_OUT, 'null');
 
+/* Basic Project Output layout */
 const STATIC_ROOT = path.join(SERVER_OUT, 'static');
 const DYNAMIC_ROOT= path.join(SERVER_OUT, 'dynamic');
 const SERVER_ROOT = path.join(SERVER_OUT, 'server');
-const SERVER_ROOT_R = path.join(ROOT_R, SERVER_ROOT);
 const PUB_DYNAMIC_ROOT = 'dynamic';
 
-const HTML_DIR_NAME   = 'html';
-const JS_DIR_NAME     = 'javascripts';
-const CSS_DIR_NAME    = 'stylesheets';
-const SASS_DIR_NAME   = 'stylesheets/sass';
-const IMAGE_DIR_NAME  = 'images';
-const VIDEO_DIR_NAME  = 'video';
-const DATA_DIR_NAME   = 'data';
-const PUG_DIR_NAME    = 'pug';
+/* Standard resource subdirectory names */
+const JS_DIR_NAME     = exports.JS_DIR_NAME     =  'javascripts';
+const CSS_DIR_NAME    = exports.CSS_DIR_NAME    =  'stylesheets';
+const SASS_DIR_NAME   = exports.SASS_DIR_NAME   =  'stylesheets/sass';
+const IMAGE_DIR_NAME  = exports.IMAGE_DIR_NAME  =  'images';
+const VIDEO_DIR_NAME  = exports.VIDEO_DIR_NAME  =  'video';
+const DATA_DIR_NAME   = exports.DATA_DIR_NAME   =  'data';
+const PUG_DIR_NAME    = exports.PUG_DIR_NAME    =  'pug';
 
-const ROUTE_DIR_NAME  = 'routes';
+/* Auto generated router definition file name */
+const APPS_DEFINITION_FILE = exports.APPS_DEFINITION_FILE = '.apps_definition.json';
+const ROUTER_DEFINITION_FILE = exports.ROUTER_DEFINITION_FILE = 'router_definition.js';
 
+/* Resolved Paths */
+const ROOT_R     = path.resolve(__dirname); // Resolved project root
+const ROOT_APP_R = path.resolve(__dirname, APP_SRC_ROOT); // Resolved app source root
 
-const ROOT_APP_R = path.resolve(__dirname, APP_SRC_ROOT);
-const ROUTE_REPO_R = path.join(SERVER_ROOT_R, ROUTE_DIR_NAME);
-const ROUTE_REPO_APP_R = path.join(ROUTE_REPO_R, APP_SRC_ROOT);
+const SERVER_ROOT_R = path.join(ROOT_R, SERVER_ROOT); // Resoved server output root
 
 const lo = require('lodash');
 const debuglog = require('util').debuglog('config');
@@ -73,22 +75,22 @@ function  getBuildFiles(root)
          *              r   route
          */
         // client files
-        sta_css:    getAllFiles(root, 'css', 's'),
-        dyn_css:    getAllFiles(root, 'css', 'd'),
-        //sta_sass:   getAllFiles(this.root, ['scss'], 's'),
-        dyn_sass:   getAllFiles(root, 'scss', 'd'),
-        sta_html:   getAllFiles(root, 'html', 's'),
-        dyn_html:   getAllFiles(root, 'html', 'd'),
-        sta_js:     getAllFiles(root, 'js', 's'),
-        dyn_js:     getAllFiles(root, 'js', 'd'),
-        sta_ts:     getAllFiles(root, ['ts', 'tsx'], 's'),
-        dyn_ts:     getAllFiles(root, ['ts', 'tsx'], 'd'),
-        sta_pug:    getAllFiles(root, 'pug', 's'), // all goes through webpack that generate html
-        dyn_pug:    getAllFiles(root, 'pug', 'd'),
+        sta_css:    [], //getAllFiles(root, 'css', 's'),
+        dyn_css:    [], //getAllFiles(root, 'css', 'd'),
+        //sta_sass: [], //getAllFiles(this.root, ['scss'], 's'),
+        dyn_sass:   [], //getAllFiles(root, 'scss', 'd'),
+        sta_html:   [], //getAllFiles(root, 'html', 's'),
+        dyn_html:   [], //getAllFiles(root, 'html', 'd'),
+        sta_js:     [], //getAllFiles(root, 'js', 's'),
+        dyn_js:     [], //getAllFiles(root, 'js', 'd'),
+        sta_ts:     [], //getAllFiles(root, ['ts', 'tsx'], 's'),
+        dyn_ts:     [], //getAllFiles(root, ['ts', 'tsx'], 'd'),
+        sta_pug:    [], //getAllFiles(root, 'pug', 's'), // all goes through webpack that generate html
+        dyn_pug:    [], //getAllFiles(root, 'pug', 'd'),
 
         // server files (always 'dynamic')
-        srv_js:     getAllFiles(root, 'js', 'vl'),
-        route_js:   getAllFiles(root, 'js', 'vr'),
+        srv_js:     [], //getAllFiles(root, 'js', 'vl'),
+        router_js:  null,
     };
     //console.log("getBuildFiles", root, default_build_files);
     try {
@@ -113,28 +115,30 @@ const __global_outdir = (function () {
     let null_dyn_repo = path.join(ROOT_R, NULL_SERVER_OUT);
 
     let srv_repo = SERVER_ROOT_R
-    let route_repo = ROUTE_REPO_R
 
     return {
         sta_repo:   sta_repo,
         dyn_repo:   dyn_repo,
         null_dyn_repo: null_dyn_repo,
 
+        /* Below are recommended resource output directory,
+        *  not enforced.
+        */
         sta_css:    path.join(sta_repo, CSS_DIR_NAME),
         dyn_css:    path.join(dyn_repo, CSS_DIR_NAME),
         dyn_sass:   path.join(dyn_repo, SASS_DIR_NAME),
 
-        sta_html:   path.join(sta_repo, HTML_DIR_NAME),
-        dyn_html:   path.join(dyn_repo, HTML_DIR_NAME),
+        sta_html:   sta_repo,
+        dyn_html:   dyn_repo,
         dyn_pug:    path.join(dyn_repo, PUG_DIR_NAME),
-        null_dyn_html: path.join(null_dyn_repo, HTML_DIR_NAME),
+        null_dyn_html: null_dyn_repo,
 
         sta_js:     path.join(sta_repo, JS_DIR_NAME),
         dyn_js:     path.join(dyn_repo, JS_DIR_NAME),
 
-        // server files
-        srv_js: srv_repo, // the root of server binary
-        route_js: route_repo, // the root of server routes
+        /*  server files
+        */
+        srv_repo: srv_repo, // the root of server binary
     };
 })();
 
@@ -173,7 +177,7 @@ class AppConfig
                 infiles: all_build_files,
                 outdir: lo.assign({}, __global_outdir,
                     {
-                        route_js: path.join(__global_outdir.route_js, apppath) /* the root of server routes */
+                        //route_js: path.join(__global_outdir.route_js, apppath) /* the root of server routes */
                     }),
                 pubroot: PUB_DYNAMIC_ROOT,
                 externals: {}
@@ -185,7 +189,48 @@ class AppConfig
         this.children_seq = null;
     }
 
+    initChildrenSeq() {
+        this.children_seq = lo.values(this.children);
+        this.children_seq.sort((a, b) => { return (a.hasOwnProperty('priority') && a.priority || 100) - (b.hasOwnProperty('priority') && b.priority || 100); });
+    }
+
+    _toJSON(app, flt = null) {
+        let data = lo.pickBy(app, (v, k) => !lo.isFunction(v) && k !== 'parent');
+        if (flt) {
+            data = flt(data);
+        }
+        let children = {};
+        for (let cn in data.children) {
+            children[cn] = this._toJSON(data.children[cn], flt);
+        }
+        data.children = children;
+        data.children_seq = undefined;
+        return data;
+    }
+
+    toJSON() {
+        return this._toJSON(this);
+    }
+
+    toRuntimeJSON() {
+        let flt = lo.partialRight(lo.pick, ['root', 'apppath', 'name', 'children']);
+        return this._toJSON(this, flt);
+    }
+
+    fromJSON(json) {
+        function _fromJSON(json) {
+            let obj = lo.assign(Object.create(AppConfig.prototype), json);
+            for (let cn in obj.children) {
+                obj.children[cn] = _fromJSON(obj.children[cn]);
+            }
+            obj.initChildrenSeq();
+            return obj;
+        }
+        return _fromJSON(json);
+    }
+
 };
+AppConfig.fromJSON = AppConfig.prototype.fromJSON;
 
 
 function constructAppConfigTree(root, approot, parent, config_env)
@@ -222,10 +267,15 @@ function constructAppConfigTree(root, approot, parent, config_env)
     for (let c of children) {
         app.children[c.name.substr(app.name.length+1)] = c;
     }
-    children.sort((a, b) => { return (a.hasOwnProperty('priority') && a.priority || 100) - (b.hasOwnProperty('priority') && b.priority || 100); });
-    app.children_seq = children;
+    app.initChildrenSeq();
 
     return app;
+}
+
+function loadAppConfigTree()
+{
+    //return AppConfig.fromJSON(fs.readFileSync());
+    return AppConfig.fromJSON(require('./.apps_definition'));
 }
             
 var ServerConfig;
@@ -238,19 +288,20 @@ function __createProductionServerConfig(env = 'production')
             let build_out_root = path.resolve(__dirname, SERVER_ROOT);
             let working_dir = path.resolve(__dirname, SERVER_OUT);
             let build_in_root = path.resolve(__dirname, SERVER_SRC_ROOT);
-            let route_repo = path.join(SERVER_ROOT_R, ROUTE_DIR_NAME);
             let conf;
             this.config = conf = {}
             if (config_env === 'build') {
                 conf.build = {
                     indir: build_in_root,
+                    router_def: path.join(build_in_root, ROUTER_DEFINITION_FILE),
                     outdir: build_out_root,
-                    routeroot: route_repo,
+                    sta_repo: __global_outdir.sta_repo,
+                    dyn_repo: __global_outdir.dyn_repo,
+                    //working_dir: working_dir,
+
                     sta_resdir: getAllAppsDirs(config, 'sta'),
                     dyn_resdir: getAllAppsDirs(config, 'dyn'),
                     null_dyn_resdir: getAllAppsDirs(config, 'null_dyn'),
-                    routedir: getAllAppsDirs(config, 'route'),
-                    working_dir: working_dir,
                 }
             } else if (config_env === 'server') {
                 conf.rtpath = {
@@ -263,6 +314,9 @@ function __createProductionServerConfig(env = 'production')
                     null_dyn_repo: __global_outdir.null_dyn_repo,
                     null_dyn_repo_rel: null, // depends on null_dyn_repo
 
+                    /* Below are recommended resource output layout,
+                    *  not enforced.
+                    */
                     sta_html_repo: __global_outdir.sta_html,
                     sta_html_repo_rel: null, // depends on sta_html_repo
                     dyn_html_repo: __global_outdir.dyn_html,
@@ -286,10 +340,10 @@ function __createProductionServerConfig(env = 'production')
                     dyn_pug_repo: __global_outdir.dyn_pug,
                     dyn_pug_repo_rel: null, // depends on dyn_pug_repo
 
-                    srv_repo: __global_outdir.srv_js,
+                    /* Server repo
+                    */
+                    srv_repo: __global_outdir.srv_repo,
                     srv_repo_rel: null, // depends on srv_repo
-                    route_repo: __global_outdir.route_js,
-                    route_repo_rel: null, // depends on route_repo
                 }
                 const rel_func = function (to) {
                     return (wd = conf.rtpath.working_dir) => { return path.relative(wd, to); }; 
@@ -314,118 +368,18 @@ function __createDebugServerConfig()
 
 function __createWebpackDebugServerConfig()
 {
-    class _ServerConfig
-    {
-        constructor()
-        {
-            let build_out_root = path.resolve(__dirname, SERVER_SRC_ROOT);
-            this.config = {
-                build: {
-                    outdir: build_out_root,
-                },
-                rtpath: {
-                    root: build_out_root,
-                    pug_root: path.join(build_out_root, 'pug'),
-                },
-            }
-        }
-    };
-
-    return _ServerConfig;
+    return __createProductionServerConfig('webpack-debug');
 }
-
-if (NODE_ENV === 'production') {
-    ServerConfig = __createProductionServerConfig();
-} else if (NODE_ENV === 'debug') {
-    ServerConfig = __createDebugServerConfig();
-} else if (NODE_ENV === 'webpack-debug') {
-    ServerConfig = __createWebpackDebugServerConfig();
-} else {
-    ServerConfig = __createDebugServerConfig();
-}
-    
-
-
-/*
-var SOURCE_DIR  = 'src';
-var RES_SOURCE_DIR = 'res';
-var BUILD_DIR = 'public';
-var SRV_BUILD_DIR = 'dist';
-var IMG_REPO = [RES_SOURCE_DIR, 'images'].join('/');
-
-config = {
-    css_build_in    : [ [SOURCE_DIR, 'stylesheets', 'css', '*.css' ].join('/') ],
-    sass_build_in   : [ [SOURCE_DIR, 'stylesheets', 'sass', '*.scss'].join('/') ],
-    css_build_out   : [ BUILD_DIR, 'stylesheets' ].join('/'),
-
-    pug_build_in    : [ [SOURCE_DIR, 'views', 'pug', '**', '*.pug' ].join('/') ],
-    pug_build_out   : [SRV_BUILD_DIR, 'views', 'pug'].join('/'),
-    html_build_out  : [BUILD_DIR].join('/'),
-
-    srv_js_build_in : [ [SOURCE_DIR, 'srv-js', '**', '*.js'].join('/') ],
-    srv_js_build_out: [SRV_BUILD_DIR].join('/'),
-
-    img_repo        : IMG_REPO,
-    img_build_in    : [ [IMG_REPO, '**', '*.(png|jpg|jpeg)'].join('/') ],
-    img_build_out   : [BUILD_DIR, 'images'].join('/'),
-
-    cli_js_build_in : [ [SOURCE_DIR, 'cli-js', '**', '*.js'].join('/') ],
-    cli_js_build_out: [BUILD_DIR, 'javascripts'].join('/')
-};
-
-module.exports = config
-
-if (require.main === module) {
-    let process = require('process');
-    let argv = require('minimist')(process.argv.slice(2));
-    let path = require('path');
-    const target = argv._[0];
-    if (target === 'print_dirs') {
-        let target_dirs = [];
-        for (let prop in config) {
-            let prop_val = config[prop];
-            if (prop.endsWith('build_in') || prop.endsWith('build_out') || prop.endsWith('repo')) {
-                let process_dir = (d) => {
-                    let path_arr = d.split('/');
-                    //console.log("prop_val", prop, prop_val, path_arr);
-                    let [last, lastbut] = [path_arr[path_arr.length-1], path_arr[path_arr.length-2]];
-                    let target_dir;
-                    //console.log("last, lastbut", last, lastbut);
-                    if (last && last.indexOf('*') >= 0) {
-                        if (lastbut && lastbut.indexOf('*') >= 0) {
-                            target_dir = path.resolve(__dirname, ...path_arr.slice(0, -2));
-                        } else {
-                            target_dir = path.resolve(__dirname, ...path_arr.slice(0, -1));
-                        }
-                    } else {
-                        target_dir = path.resolve(__dirname, ...path_arr);
-                    }
-                    target_dirs.push([target_dir, prop]);
-                    //console.log("target_dir", target_dir);
-                }
-
-                if (Array.isArray(prop_val)) {
-                    Array.prototype.map.apply(prop_val, [process_dir]);
-                } else {
-                    process_dir(prop_val);
-                }
-            }
-        }
-
-        target_dirs.sort();
-        //console.log("Target Dirs:", target_dirs);
-        for (let p of target_dirs) {
-            console.log(p[1], p[0]);
-        }
-    }
-}
-*/
 
 var CONFIG_MAP = {};
 
 function ConfigGenerator(config_env) {
-    if (CONFIG_MAP[config_env])
+    if (CONFIG_MAP[config_env]) {
         return CONFIG_MAP[config_env];
+    }
+
+    const NODE_ENV = process.env.NODE_ENV || 'production';
+
 
     const config = CONFIG_MAP[config_env] = {
         env_class: NODE_ENV, // production, debug or webpack-debug
@@ -434,6 +388,9 @@ function ConfigGenerator(config_env) {
         },
         app: null,           // app config tree
         server: null,        // server config
+
+        project_root: ROOT_R,
+        apps_def: path.join(ROOT_R, APPS_DEFINITION_FILE),
 
         getApp(fullappname) {
             let appstack = fullappname.split('.');
@@ -453,15 +410,26 @@ function ConfigGenerator(config_env) {
             let rel_root = path.relative(this.app.root, apppath);
             return this.getApp(path.join(this.app.name, rel_root).replace(new RegExp(path.sep, 'g'), '.'));
         },
-
-        project_root: ROOT_R,
             
     };
+
     if (config_env === 'build') {
         config.app = constructAppConfigTree(ROOT_R, ROOT_APP_R, null, config_env);
     } else if (config_env == 'server') {
-        config.app = constructAppConfigTree(ROUTE_REPO_R, ROUTE_REPO_APP_R, null, config_env);
+        config.app = loadAppConfigTree();
     }
+
+    if (NODE_ENV === 'production') {
+        ServerConfig = __createProductionServerConfig();
+    } else if (NODE_ENV === 'debug') {
+        ServerConfig = __createDebugServerConfig();
+    } else if (NODE_ENV === 'webpack-debug') {
+        ServerConfig = __createWebpackDebugServerConfig();
+    } else {
+        ServerConfig = __createDebugServerConfig();
+    }
+        
+
     config.server = new ServerConfig(config, config_env);
 
     // copy server runtime configure to apps
@@ -485,7 +453,7 @@ function ConfigGenerator(config_env) {
     }());
     }
 
-    return config;
+    return Object.assign(config, exports);
 }
 
 module.exports = ConfigGenerator;

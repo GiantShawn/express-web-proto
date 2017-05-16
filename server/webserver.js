@@ -45,7 +45,7 @@ function WebServer()
         }
         this.use(express.static(server_config.rtpath.dyn_html_repo));
 
-        if (config.env_class === 'debug') {
+        if (config.env_class === 'webpack-debug') {
             const compiler = webpack(require('./webpack.config'));
 			//https://www.npmjs.com/package/webpack-hot-middleware
             this.use(require("webpack-dev-middleware")(compiler, {
@@ -78,12 +78,13 @@ function WebServer()
     server.setupRoutes = function ()
     {
         //let route_root = server_config.rtpath.route_repo;
-        let route_root_rel = server_config.rtpath.route_repo_rel(); // from working dir
-        function route_rel(appname) {
-            let apppath = appname.replace(/\./g, path.sep);
-            let routepath = path.join(route_root_rel, apppath);
-            return path.join(routepath, 'index.js');
-        }
+        //let route_root_rel = server_config.rtpath.route_repo_rel(); // from working dir
+        //function route_rel(appname) {
+            //let apppath = appname.replace(/\./g, path.sep);
+            //let routepath = path.join(route_root_rel, apppath);
+            //return path.join(routepath, 'index.js');
+        //}
+        require('./router_definition')(config.app);
 
         (function _setupRoute(app, prouter) {
             //const router = server.Router();
@@ -96,23 +97,33 @@ function WebServer()
             */
 
             let routerdef;
-            try {
-                let router_js = route_rel(app.name);
-                console.log("Gonna setup router for ", app.name, router_js);
-                fs.accessSync(router_js, fs.constants.R_OK);
-                routerdef = require(router_js)(prouter);
-                console.log("Got routerdef", routerdef);
-            } catch (e) {
-                console.log(e);
-            } finally {
-                if (!routerdef) {
-                    routerdef = {
-                        router: express.Router(),
-                        beforeChildren() {},
-                        afterChildren() {}
-                    }
-                    prouter.use('/', routerdef.router);
+            //try {
+                //let router_js = route_rel(app.name);
+                //console.log("Gonna setup router for ", app.name, router_js);
+                //fs.accessSync(router_js, fs.constants.R_OK);
+                //routerdef = require(router_js)(prouter);
+                //console.log("Got routerdef", routerdef);
+            //} catch (e) {
+                //console.log(e);
+            //} finally {
+                //if (!routerdef) {
+                    //routerdef = {
+                        //router: express.Router(),
+                        //beforeChildren() {},
+                        //afterChildren() {}
+                    //}
+                    //prouter.use('/', routerdef.router);
+                //}
+            //}
+            if (app.router_module) {
+                routerdef = app.router_module(prouter);
+            } else {
+                routerdef = {
+                    router: express.Router(),
+                    beforeChildren() {},
+                    afterChildren() {},
                 }
+                prouter.use('/', routerdef.router);
             }
 
             routerdef.beforeChildren();
