@@ -5,10 +5,11 @@ const path = require('path');
 
 exports.setupProjBuildEnv = function setupProjBuildEnv(env, dirname)
 {
+    const utils = require('./index');
     const env_class = env && env.env || 'webpack-debug';
     const build_mode = env && env.bmode || 'local';
 
-    console.log("env_class", env_class, build_mode);
+    utils.loginfo("Build Environment: %s:%s", env_class, build_mode);
 
     const real_cwd = fs.realpathSync(process.cwd());
     const file_cwd = fs.realpathSync(dirname);
