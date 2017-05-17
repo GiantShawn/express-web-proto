@@ -21,7 +21,7 @@ var config;
 
 function setBuildEnv(env)
 {
-    console.log(`BUILD in ENV: [${env}]`);
+    utils.logimp(`BUILD in ENV: [${env}]`);
     assert(lo.includes(['production', 'debug', 'webpack-debug'], env));
     process.env.NODE_ENV = env;
 }
@@ -34,6 +34,8 @@ if (argv) {
     var rootapp = config.app;
     if (argv.app) {
         rootapp = config.getApp(argv.app);
+        if (!rootapp)
+            process.exit(1);
     }
 }
 
@@ -72,12 +74,12 @@ function setupServerDirectories()
 
 
     return Promise.all(repos_p).then((paths) => {
-        console.log("Setup Server Directories Succeed.");
+        utils.logimp("Setup Server Directories Succeed.");
         for (let p of paths) {
-            console.log("\t", p);
+            utils.loginfo("\t", p);
         }
     }, (err) => {
-        console.error("Setup Server Directories Fail with reason:", err);
+        utils.logerror("Setup Server Directories Fail with reason:%s", err);
     });
 }
 
@@ -116,7 +118,7 @@ module.exports = function (app) {
                     }
 
                     if (!router_def_file) {
-                        console.log(`No router definition is found for app[${c.name}]`);
+                        utils.logtips(`No router definition is found for app[${c.name}]`);
                         content += 'app' + appname.map((n) => ".children['" + n + "']") + '.router_module = null;\n';
                     } else {
                         content += 'app' + appname.map((n) => ".children['" + n + "']");
@@ -147,7 +149,7 @@ module.exports = function (app) {
                             if (err) {
                                 cb('Webpack server Error!');
                             } else {
-                                console.log(`Webpack server Succeed!`);
+                                utils.logimp(`Webpack server Succeed!`);
                                 cb(null);
                             }
                         });
@@ -168,7 +170,7 @@ const APP_BUILD_STEPS = [
         let tsconfig_def_file = path.join(app.root, 'tsconfig-def.js');
         fs.access(tsconfig_def_file, fs.constants.R_OK, function (err) {
             if (err) {
-                console.log(`No typescript files to transpile, do nothing for app[${app.name}].`);
+                utils.logtips(`No typescript files to transpile, do nothing for app[${app.name}].`);
                 res();
             } else {
                 let tsconfig = require(tsconfig_def_file);
@@ -177,7 +179,7 @@ const APP_BUILD_STEPS = [
                     if (err) {
                         rej(`Fail to write tsconfig.json to app[${app.name}].`);
                     } else {
-                        console.log(`Generate tsconfig.js for app[${app.name}].`);
+                        utils.loginfo(`Generate tsconfig.js for app[${app.name}].`);
                         res();
                     }
                 });
@@ -190,7 +192,7 @@ const APP_BUILD_STEPS = [
         let webpack_config_js = path.join(app.root, 'webpack.config.js');
         fs.access(webpack_config_js, fs.constants.R_OK, function (err) {
             if (err) {
-                console.log(`Can not open webpack.config.js for app [${app.name}].`);
+                utils.logtips(`Can not open webpack.config.js for app [${app.name}].`);
                 res();
             } else {
                 let webpack_config = require(webpack_config_js)({env: config.env_class, bmode: 'global'});
@@ -200,8 +202,8 @@ const APP_BUILD_STEPS = [
                     if (err) {
                         rej(`Webpack app ${app.name} Error!`);
                     } else {
-                        console.log(`Webpack app ${app.name} Succeed!`);
-                        console.log(stats.toString());
+                        utils.logimp(`Webpack app ${app.name} Succeed!`);
+                        utils.loginfo(stats.toString());
                         res();
                     }
                 });
@@ -217,7 +219,7 @@ function buildApp(rootapp)
     }
 
     function _buildApp(app) {
-        console.log("Build App:", app.name, app.root);
+        utils.logimp("Build App %s:%s", app.name, app.root);
         let prom = Promise.resolve();
         for (let step_func of APP_BUILD_STEPS) {
             prom = prom.then(() => new Promise(
@@ -235,10 +237,10 @@ function buildApp(rootapp)
         //console.log(e.name, e.children_seq, q);
     }
     prom.then(function () {
-        console.log("|-----  BUILD APPS SUCCEED!");
+        utils.logimp("Build Apps Succeed!");
     }).catch(function (err) {
-        console.log("|-----  BUILD APPS FAIL!");
-        console.error(err);
+        utils.logerror_noexit("Build Apps Fail!");
+        utils.logtips(err);
     });
 
     return prom;
@@ -249,7 +251,7 @@ function copyFileAsync(src, dst)
 {
     let rs = fs.createReadStream(src);
     rs.once('error', function (err) {
-        console.error(`Fail to copy file[${src}] to [${dst}]`);
+        utils.logtips(`Fail to copy file[${src}] to [${dst}]`);
     });
     rs.pipe(fs.createWriteStream(dst));
 }
@@ -324,10 +326,10 @@ if (require.main === module) {
         prom = prom.then(() => new Promise(step_func));
     }
     prom.then(() => {
-        console.log("BUILD SUCCEED!");
+        utils.logimp("BUILD SUCCEED!");
     }).catch((err) => {
-        console.error("BUILD FAIL");
-        console.error(err);
+        utils.logerror_noexit("BUILD FAIL");
+        utils.loginfo(err);
     });
 
 }

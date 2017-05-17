@@ -42,6 +42,7 @@ const SERVER_ROOT_R = path.join(ROOT_R, SERVER_ROOT); // Resoved server output r
 const lo = require('lodash');
 const debuglog = require('util').debuglog('config');
 const util = require('util');
+const utils = require('./utils');
 
 
 function getAllFiles(root, exts, tps)
@@ -247,7 +248,7 @@ function constructAppConfigTree(root, approot, parent, config_env)
         app_spec_config = require(path.join(approot, 'config.js'));
     } catch (e) {
         if (e.code !== 'MODULE_NOT_FOUND')
-            console.error(e)
+            utils.logerror(e)
     }
 
     let app_class = app_spec_config && app_spec_config.app_config_class(AppConfig) || AppConfig;
@@ -395,7 +396,7 @@ function ConfigGenerator(config_env) {
         getApp(fullappname) {
             let appstack = fullappname.split('.');
             if (appstack[0] !== this.app.name) {
-                console.error("Only accept absolute app name in getApp", fullappname);
+                utils.logerror("Only accept absolute app name[%s] in getApp", fullappname);
                 return null;
             }
                 
@@ -432,38 +433,19 @@ function ConfigGenerator(config_env) {
 
     config.server = new ServerConfig(config, config_env);
 
-    // copy server runtime configure to apps
-    if (false) {
-    (function () {
-        let server_rt = config.server.config.rtpath;
-        let q = [config.app];
-        while (q.length) {
-            let app = q.shift();
-            app.config.rtpath = Object.assign({}, server_rt);
-            /*
-            for (let rel_prop in app.config.rtpath) {
-                if (rel_prop.endsWith('_rel')) {
-                    let prop = app.config.rtpath[rel_prop];
-                    app.config.rtpath[rel_prop] = prop(app.root);
-                }
-            }
-            */
-            q = q.concat(lo.values(app.children));
-        };
-    }());
-    }
-
     return Object.assign(config, exports);
 }
+
+ConfigGenerator.env_class =  process.env.NODE_ENV || 'production';
 
 module.exports = ConfigGenerator;
 
 if (require.main === module) {
     function prettyOutput(name, obj) {
         const util = require('util');
-        console.log(`--------  ${name} -----------`);
-        console.log(util.inspect(obj, {depth: null}));
-        console.log();
+        utils.loginfo(`--------  ${name} -----------`);
+        utils.loginfo(util.inspect(obj, {depth: null}));
+        utils.loginfo();
     }
 
     let config = ConfigGenerator('server');
