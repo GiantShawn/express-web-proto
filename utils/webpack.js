@@ -6,6 +6,7 @@ const webpack = require('webpack');
 const ExtractTextPlugin = require('extract-text-webpack-plugin');
 const NodeExternals = require('webpack-node-externals');
 const WebpackDiskPlugin = require('webpack-disk-plugin');
+const utils = require('utils');
 
 function getClientEntryFile(apppath)
 {
@@ -26,8 +27,9 @@ function NewClientWebpackConfigBase(apppath, options = {})
 {
 	/* options:
 	*   entry: './main.js'
-		*   publicPath: '/'
-		*/
+    *   do_hmr: true|false (false)
+    *   dev_srv_pub: <dev server public uri> (a.shawnli.org:8080)
+    */
     const appconfig = config.getAppByDir(apppath);
 
     const CommonPlugins = function () {
@@ -41,14 +43,6 @@ function NewClientWebpackConfigBase(apppath, options = {})
 					//}
 				}
 			}),
-            new webpack.DefinePlugin({
-                /* https://webpack.js.org/guides/production-build/
-                */
-                'process.env': {
-                    'NODE_ENV': JSON.stringify('production')
-                }
-            }),
-            //new webpack.NoErrorsPlugin(), // used to handle errors more cleanly
         ];
     }
 
@@ -61,19 +55,12 @@ function NewClientWebpackConfigBase(apppath, options = {})
                 // Enable the plugin to let webpack communicate changes
                 // to WDS. --hot sets this automatically!
                 plugins.push(new webpack.HotModuleReplacementPlugin());
-                plugins.push(new webpack.DefinePlugin({
-                    'process.env': {
-                        'NODE_ENV': JSON.stringify('debug')
-                    }
-                }));
             } else if (config.env_class === 'webpack-debug') {
-                plugins.push(new webpack.DefinePlugin({
-                    'process.env': {
-                        'NODE_ENV': JSON.stringify('webpack-debug')
-                    }
-                }));
+                // Enable the plugin to let webpack communicate changes
+                // to WDS. --hot sets this automatically!
+                plugins.push(new webpack.HotModuleReplacementPlugin());
             } else {
-                assert (false);
+                utils.assert (false, 'config.env_class can be recognized: %s', config.env_class);
             }
         }
         return plugins;
@@ -114,17 +101,41 @@ function NewClientWebpackConfigBase(apppath, options = {})
     }
 
     let entry;
-    const normalizeEntry = function (e) { return (e.charAt(0) === path.sep && e || path.join(apppath, e)); }
+    const normalizeEntry = function (e) {
+        return  (e.charAt(0) === path.sep && e || path.join(apppath, e)); 
+    }
+
+    let do_hmr = (config.env_class !== 'production');
+    let dev_srv_pub = options.dev_srv_pub || 'a.shawnli.org:8080';
+
+    const hmr_patch = [ // activate HMR for React
+                        'react-hot-loader/patch',
+                        'webpack-hot-middleware/client',
+						// bundle the client for hot reloading
+						// only- means to only hot reload for successful updates
+                        'webpack/hot/only-dev-server'];
+    const patchHmr = function (e) {
+        if (do_hmr)
+            return hmr_patch.concat(e);
+        else
+            return e;
+    }
+
     if (options.entry) {
         if (lo.isObject(options.entry)) {
-            entry = lo.mapValues(options.entry, normalizeEntry);
+            entry = lo.mapValues(options.entry, (e) => {
+                if (lo.isArray(e))
+                    return patchHmr(e.map(normalizeEntry));
+                else
+                    return patchHmr(normalizeEntry(e));
+            });
         } else if (lo.isArray(options.entry)) {
-            entry = options.entry.map(normalizeEntry);
+            entry = patchHmr(options.entry.map(normalizeEntry));
         } else {
-            entry = normalizeEntry(options.entry);
+            entry = patchHmr(normalizeEntry(options.entry));
         }
     } else {
-        entry = getClientEntryFile(apppath);
+        entry = patchHmr(getClientEntryFile(apppath));
     }
 
 	const common_webpack_config_template = {
@@ -200,14 +211,14 @@ function NewClientWebpackConfigBase(apppath, options = {})
 						{
 							loader: 'file-loader',
 							options: {
-								name: '../html/[name].[ext]',
+								name: '[name].[ext]',
 							}
 
 						},
                         {
                             loader: 'extract-loader',
                             options: {
-                                publicPath: '../javascripts'
+                                publicPath: '.'
                             }
                         },
 						"html-loader",
@@ -222,7 +233,8 @@ function NewClientWebpackConfigBase(apppath, options = {})
 		// dependencies, which allows browsers to cache those libraries between builds.
 		externals: {
 			"react": "React",
-			"react-dom": "ReactDOM"
+			"react-dom": "ReactDOM",
+            "jquery": "jQuery",
 		},
 
         devServer: {
@@ -231,7 +243,7 @@ function NewClientWebpackConfigBase(apppath, options = {})
 			//hotOnly: true,
 
             // If you want to refresh on errors too, set
-            hot: true,
+            hot: do_hmr,
 
 			//inline: false,
 			contentBase: config.server.config.build.dyn_repo,
@@ -241,7 +253,7 @@ function NewClientWebpackConfigBase(apppath, options = {})
 			// match the output `publicPath`
 
 			host: '0.0.0.0',
-			public: 'd.shawnli.org:8080',
+			public: dev_srv_pub,
         },
 
 		plugins: [].concat(
@@ -281,7 +293,7 @@ function NewServerWebpackConfigBase(options = {})
         resolve: {
             modules: [config.project_root, path.join(config.project_root, 'node_modules')],
         },
-        context: config.server.config.build.working_dir,
+        context: config.server.config.build.rt_working_dir,
 		entry: {
 			main: options.entry || path.join(serverconfig.build.indir, 'main.js'),
 		},
@@ -313,8 +325,6 @@ function NewServerWebpackConfigBase(options = {})
 			]
 		},
 
-        devtool: 'source-map', // in production should this line be removed
-        
 		externals: [
             /* https://www.npmjs.com/package/webpack-node-externals
 				CONFIGURATION
@@ -339,25 +349,60 @@ function NewServerWebpackConfigBase(options = {})
 				Read the modules from the package.json file instead of the node_modules folder.
             */
             NodeExternals({
-			// this WILL include `jquery` and `webpack/hot/dev-server` in the bundle, as well as `lodash/*` 
-			whitelist: ['jquery', 'webpack/hot/dev-server', 'webpack/hot/only-dev-server', /^lodash/]
+			// this WILL include `jquery` and `lodash/*` 
+            modulesDir: path.resolve(__dirname, '../node_modules'),
+			whitelist: ['jquery', /^lodash/]
 		})],
 
 		plugins: [
-            // http://jlongster.com/Backend-Apps-with-Webpack--Part-I
-			new webpack.BannerPlugin({
-                banner: 'require("source-map-support").install();', raw: true, entryOnly: false
-            }),
             new webpack.IgnorePlugin(/\.(css|less)$/),
 		],
-		stats: {
+	};
+
+    let banner = '';
+
+    if (config.env_class === 'production') {
+        conf.plugins.push(
+            new webpack.DefinePlugin({
+                /* https://webpack.js.org/guides/production-build/
+                */
+                //'process.env': {
+                    //'NODE_ENV': JSON.stringify('production')
+                //}
+            }));
+        banner += "process.env.NODE_ENV = 'production'; ";
+
+        //conf.plugins.push(new webpack.NoErrorsPlugin()), // used to handle errors more cleanly
+    } else {
+        conf.devtool = 'source-map'; // in production should this line be removed
+        banner += 'require("source-map-support").install();';
+
+        conf.stats = {
 			colors: true,
 			modules: true,
 			reasons: true,
 			errorDetails: true
-		},
+		};
 
-	};
+        conf.plugins.push(
+            new webpack.DefinePlugin({
+                /* https://webpack.js.org/guides/production-build/
+                */
+                //'process.env': {
+                    //'NODE_ENV': JSON.stringify(config.env_class)
+                //}
+            }));
+
+        banner += `process.env.NODE_ENV = '${config.env_class}'; `;
+
+    }
+
+    conf.plugins.push(
+        // http://jlongster.com/Backend-Apps-with-Webpack--Part-I
+        new webpack.BannerPlugin({
+            banner: banner, raw: true, entryOnly: false
+        }));
+        
     return conf;
 }
 

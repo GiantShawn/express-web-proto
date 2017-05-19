@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 /* Build this project as a whole or seperate apps
 */
 
@@ -18,18 +19,26 @@ else
 
 //const build_target = argv._[0];
 var config;
+var build_mode;
 
-function setBuildEnv(env)
+function initBuild(env)
 {
-    utils.logimp(`BUILD in ENV: [${env}]`);
-    assert(lo.includes(['production', 'debug', 'webpack-debug'], env));
-    process.env.NODE_ENV = env;
+    const projutils = require('./utils/proj');
+    projutils.setupProjBuildEnv(__dirname, env || 'debug');
+    config = require('config')('build');
 }
 
-if (argv) {
-    setBuildEnv(argv.env || 'debug');
+exports.initBuild = initBuild;
 
-    config = require('config')('build');
+
+if (argv) {
+    /* Command line arguments:
+    * env: build environment. [production|debug|webpack-debug](debug)
+    *
+    * -------------------------
+    * This script always build project in `global` mode
+    */
+    initBuild(argv.env);
 
     var rootapp = config.app;
     if (argv.app) {
@@ -38,15 +47,6 @@ if (argv) {
             process.exit(1);
     }
 }
-
-function initBuild(env)
-{
-    setBuildEnv(env);
-    config = require('config')('build');
-}
-
-exports.initBuild = initBuild;
-
 
 
 function setupServerDirectories()
@@ -86,55 +86,63 @@ function setupServerDirectories()
 function buildExpress()
 {
     const autodo = require('async/auto');
-    return new Promise((res, rej) => {
-        autodo({
-            out_router_def: function (cb) {
-                const header = 
+    function writeDefinitionFile(def_type, in_def_file_prop, default_def_files, out_def_file, out_name, callback)
+    {
+
+        const header = 
 `'use strict';
 module.exports = function (app) {
 `;
-                const tail = '\n}';
+        const tail = '\n}';
 
-                let content = '';
-                let app = config.app;
-                //const app_path_root = path.join('..', config.app.root);
-                //console.log('app_path_root', app_path_root);
-                let q = [app];
-                while (q.length) {
-                    let c = q.shift();
-                    const appname = c.name.split('.').slice(1);
-                    const apppath = c.apppath;
-                    let router_def_file = c.config.build.infiles.router_js;
-                    if (!router_def_file) {
-                        for (let p of ['router.ts', 'router.js']) {
-                            try {
-                                fs.accessSync(path.join(apppath, p), fs.constants.R_OK);
-                            } catch (e) {
-                                continue;
-                            }
-                            router_def_file = p;
-                            break;
-                        }
+        let content = '';
+        let app = config.app;
+        //const app_path_root = path.join('..', config.app.root);
+        //console.log('app_path_root', app_path_root);
+        let q = [app];
+        while (q.length) {
+            let c = q.shift();
+            const appname = c.name.split('.').slice(1);
+            const apppath = c.apppath;
+            let in_def_file = c.config.build.infiles[in_def_file_prop];
+            if (!in_def_file) {
+                for (let p of default_def_files) {
+                    try {
+                        fs.accessSync(path.join(apppath, p), fs.constants.R_OK);
+                    } catch (e) {
+                        continue;
                     }
-
-                    if (!router_def_file) {
-                        utils.logtips(`No router definition is found for app[${c.name}]`);
-                        content += 'app' + appname.map((n) => ".children['" + n + "']") + '.router_module = null;\n';
-                    } else {
-                        content += 'app' + appname.map((n) => ".children['" + n + "']");
-                        content += path.join('.router_module = require("..', c.apppath, `${router_def_file}");\n`);
-                    }
-                    q = q.concat(c.children_seq);
+                    in_def_file = p;
+                    break;
                 }
+            }
 
-                fs.writeFileSync(config.server.config.build.router_def, header + content + tail);
-                cb(null);
-                return;
+            if (!in_def_file) {
+                utils.logtips(`No ${def_type} definition is found for app[${c.name}]`);
+                content += 'app' + appname.map((n) => ".children['" + n + "']") + '.' + out_name + ' = null;\n';
+            } else {
+                content += 'app' + appname.map((n) => ".children['" + n + "']");
+                content += path.join('.' + out_name + ' = require("..', c.apppath, `${in_def_file}");\n`);
+            }
+            q = q.concat(c.children_seq);
+        }
+
+        fs.writeFile(out_def_file, header + content + tail, callback);
+    }
+    return new Promise((res, rej) => {
+        autodo({
+            out_router_def: function (cb) {
+                writeDefinitionFile('router', 'router_js', ['router.ts', 'router.js'],
+                    config.server.config.build.router_def, 'router_module', cb);
+            },
+            out_webpack_def: function (cb) {
+                writeDefinitionFile('webpack', null, ['webpack.config.js'],
+                    config.server.config.build.webpack_def, 'webpack_module', cb);
             },
             out_apps_def: function (cb) {
                 fs.writeFile(config.apps_def, JSON.stringify(config.app.toRuntimeJSON()), cb);
             },
-            webpack: ['out_router_def', 'out_apps_def', function (result, cb) {
+            webpack: ['out_router_def', 'out_apps_def', 'out_webpack_def', function (result, cb) {
                 let webpack_config_js = path.join(config.server.config.build.indir, 'webpack.config.js');
                 fs.access(webpack_config_js, fs.constants.R_OK, function (err) {
                     if (err) {
@@ -142,7 +150,6 @@ module.exports = function (app) {
                     } else {
                         const webpack = require('webpack');
                         let webpack_config = require(webpack_config_js);
-                        //console.log("server webpack config", webpack_config);
                         let compiler = webpack(webpack_config);
                         compiler.run(function (err, stats) {
                             // compiled
@@ -195,7 +202,7 @@ const APP_BUILD_STEPS = [
                 utils.logtips(`Can not open webpack.config.js for app [${app.name}].`);
                 res();
             } else {
-                let webpack_config = require(webpack_config_js)({env: config.env_class, bmode: 'global'});
+                let webpack_config = require(webpack_config_js)(config.env_class);
                 let compiler = webpack(webpack_config);
                 compiler.run(function (err, stats) {
                     // compiled
@@ -240,7 +247,7 @@ function buildApp(rootapp)
         utils.logimp("Build Apps Succeed!");
     }).catch(function (err) {
         utils.logerror_noexit("Build Apps Fail!");
-        utils.logtips(err);
+        console.log(err);
     });
 
     return prom;
@@ -329,7 +336,7 @@ if (require.main === module) {
         utils.logimp("BUILD SUCCEED!");
     }).catch((err) => {
         utils.logerror_noexit("BUILD FAIL");
-        utils.loginfo(err);
+        console.log(err);
     });
 
 }

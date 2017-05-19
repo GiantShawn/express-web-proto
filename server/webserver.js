@@ -1,12 +1,17 @@
 'use strict';
 
-require('app-module-path').addPath('.');
+require('app-module-path').addPath('..');
 const config = require('config')('server');
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
 const webpack = require('webpack');
+const lo = require('lodash');
+const utils = require('utils');
 var server_config = config.server.config;
+
+utils.assert(lo.includes(['production', 'debug'], config.env_class), 'NODE_ENV can not be recognized: %s', config.env_class);
+utils.logimp('RUN in ENV [%s]', config.env_class);
 
 function WebServer()
 {
@@ -41,17 +46,33 @@ function WebServer()
         }
 
         if (!config.env.static_frontend) {
+            utils.logtips('Server serve static s_resource at [%s]', server_config.rtpath.sta_html_repo);
             this.use(express.static(server_config.rtpath.sta_html_repo));
         }
+
+        utils.logtips('Server serve static d_resource at [%s]', server_config.rtpath.dyn_html_repo);
+
         this.use(express.static(server_config.rtpath.dyn_html_repo));
 
-        if (config.env_class === 'webpack-debug') {
-            const compiler = webpack(require('./webpack.config'));
-			//https://www.npmjs.com/package/webpack-hot-middleware
-            this.use(require("webpack-dev-middleware")(compiler, {
-                    noInfo: true, publicPath: webpackConfig.output.publicPath
-            }));
-            this.use(require("webpack-hot-middleware")(compiler));
+        if (config.env_class === 'debug') {
+            // setup dev middleware and hot middleware for each app
+            require('./webpack_definition')(config.app);
+            let q = [config.app];
+            while (q.length) {
+                const c = q.shift();
+                if (c.webpack_module) {
+                    const webpackConfig = c.webpack_module(config.env_class);
+                    const compiler = webpack(webpackConfig);
+                    utils.logtips("Setup webpack dev-middleware and hot-middleware for app[%s]", c.name);
+                    //https://www.npmjs.com/package/webpack-hot-middleware
+                    this.use(require("webpack-dev-middleware")(compiler, {
+                            noInfo: true, publicPath: webpackConfig.output.publicPath
+                    }));
+                    this.use(require("webpack-hot-middleware")(compiler));
+                }
+
+                q = q.concat(c.children_seq);
+            }
         }
     }
 

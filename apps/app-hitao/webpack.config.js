@@ -3,9 +3,12 @@
 const projutils = require('../../utils/proj');
 
 module.exports = function (env) {
-    projutils.setupProjBuildEnv(env, __dirname);
+    projutils.setupProjBuildEnv(__dirname, env);
 
     const webpack = require('utils/webpack');
-    const webpack_config = webpack.NewClientWebpackConfigBase(__dirname);
+    const webpack_config = webpack.NewClientWebpackConfigBase(__dirname,
+        {
+            entry: 'index.tsx',
+        });
     return webpack_config;
 }

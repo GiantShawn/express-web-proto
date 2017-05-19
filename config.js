@@ -4,7 +4,6 @@ const sprintf = require('sprintf-js').sprintf;
 const fs = require('fs');
 const path = require('path');
 const process = require('process');
-const assert = require('assert');
 
 /* Server source directories */
 const SERVER_SRC_ROOT = 'server';
@@ -32,6 +31,7 @@ const PUG_DIR_NAME    = exports.PUG_DIR_NAME    =  'pug';
 /* Auto generated router definition file name */
 const APPS_DEFINITION_FILE = exports.APPS_DEFINITION_FILE = '.apps_definition.json';
 const ROUTER_DEFINITION_FILE = exports.ROUTER_DEFINITION_FILE = 'router_definition.js';
+const WEBPACK_DEFINITION_FILE = exports.WEBPACK_DEFINITION_FILE = 'webpack_definition.js';
 
 /* Resolved Paths */
 const ROOT_R     = path.resolve(__dirname); // Resolved project root
@@ -100,7 +100,7 @@ function  getBuildFiles(root)
         let file_catalog = build_config.file_catalog;
         return lo.mergeWith(default_build_files, lo.pick(file_catalog, Object.keys(default_build_files)), (dst, src) => {
             if (lo.isArray(dst)) {
-                assert(lo.isArray(src) || lo.isString(src));
+                utils.assert(lo.isArray(src) || lo.isString(src), 'Can only merge arrays and strings: %s', src);
                 return dst.concat(src);
             }
             return src;
@@ -295,10 +295,11 @@ function __createProductionServerConfig(env = 'production')
                 conf.build = {
                     indir: build_in_root,
                     router_def: path.join(build_in_root, ROUTER_DEFINITION_FILE),
+                    webpack_def: path.join(build_in_root, WEBPACK_DEFINITION_FILE),
                     outdir: build_out_root,
                     sta_repo: __global_outdir.sta_repo,
                     dyn_repo: __global_outdir.dyn_repo,
-                    //working_dir: working_dir,
+                    rt_working_dir: working_dir,
 
                     sta_resdir: getAllAppsDirs(config, 'sta'),
                     dyn_resdir: getAllAppsDirs(config, 'dyn'),
@@ -445,7 +446,6 @@ if (require.main === module) {
         const util = require('util');
         utils.loginfo(`--------  ${name} -----------`);
         utils.loginfo(util.inspect(obj, {depth: null}));
-        utils.loginfo();
     }
 
     let config = ConfigGenerator('server');

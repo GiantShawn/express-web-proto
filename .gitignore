@@ -5,4 +5,5 @@ npm-debug.log
 tsconfig.json
 .apps_definition.json
 server/router_definition.js
+server/webpack_definition.js
 .awcache

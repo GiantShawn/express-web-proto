@@ -2,14 +2,16 @@
 
 const express = require('express');
 const fs = require('fs');
+const utils = require('utils');
 
 module.exports = function (prouter)
 {
     let router = express.Router();
     router.route('/hitao').
         get(function (req, res, next) {
-            console.log("GET /hitao");
-            fs.readFile('html/index.html', (err, data) => {
+            utils.logdebug("GET /hitao");
+            fs.readFile('dynamic/index.html', (err, data) => {
+                res.set('Content-Type', 'text/html');
                 res.send(data);
             });
         });

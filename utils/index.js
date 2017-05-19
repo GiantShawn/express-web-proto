@@ -2,7 +2,8 @@
 
 const colors = require('colors/safe');
 
-exports.flattenIterable = function () 
+/* Utils functions */
+exports.flattenIterable = function flattenIterable () 
 {
     /* Flatter any iterable */
     let res = [];
@@ -13,11 +14,31 @@ exports.flattenIterable = function ()
     return res;
 }
 
+exports.composeSync = function composeSync()
+{
+    const funcs = arguments;
+    return function () {
+        let res = Array.prototype.slice.apply(arguments);
+        for (let i = funcs.length-1; i >= 0; --i) {
+            res = [funcs[i].apply(this, res)];
+        }
+        return res[0];
+    };
+}
+
+exports.assert = function assert(ast, fmt, ...msg)
+{
+    if (fmt)
+        console.assert(ast, colors.assert(fmt), ...msg);
+    else
+        console.assert(ast);
+}
 
 /* color log definition */
 
 colors.setTheme({
     error: ['bold', 'red'],
+    assert: ['bold', 'red'],
     warning: ['bold', 'magenta'],
     imp: ['bgBlue', 'yellow'],
     tips: 'cyan',
