@@ -17,7 +17,7 @@ const NULL_SERVER_OUT = path.join(SERVER_OUT, 'null');
 const STATIC_ROOT = path.join(SERVER_OUT, 'static');
 const DYNAMIC_ROOT= path.join(SERVER_OUT, 'dynamic');
 const SERVER_ROOT = path.join(SERVER_OUT, 'server');
-const PUB_DYNAMIC_ROOT = 'dynamic';
+const PUB_DYNAMIC_ROOT = '/';
 
 /* Standard resource subdirectory names */
 const JS_DIR_NAME     = exports.JS_DIR_NAME     =  'javascripts';

@@ -66,7 +66,7 @@ function WebServer()
                     utils.logtips("Setup webpack dev-middleware and hot-middleware for app[%s]", c.name);
                     //https://www.npmjs.com/package/webpack-hot-middleware
                     this.use(require("webpack-dev-middleware")(compiler, {
-                            noInfo: true, publicPath: webpackConfig.output.publicPath
+                        noInfo: false, quiet: false, publicPath: webpackConfig.output.publicPath
                     }));
                     this.use(require("webpack-hot-middleware")(compiler));
                 }
@@ -88,7 +88,7 @@ function WebServer()
         this.use(function(err, req, res, next) {
             // set locals, only providing error in development
             res.locals.message = err.message;
-            res.locals.error = req.app.get('env') === 'development' ? err : {};
+            res.locals.error = req.app.get('env') !== 'production' ? err : {};
 
             // render the error page
             res.status(err.status || 500);

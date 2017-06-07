@@ -30,6 +30,7 @@ function NewClientWebpackConfigBase(apppath, options = {})
     *   do_hmr: true|false (false)
     *   dev_srv_pub: <dev server public uri> (a.shawnli.org:8080)
     */
+    apppath = path.resolve(apppath);
     const appconfig = config.getAppByDir(apppath);
 
     const CommonPlugins = function () {
@@ -63,41 +64,48 @@ function NewClientWebpackConfigBase(apppath, options = {})
                 utils.assert (false, 'config.env_class can be recognized: %s', config.env_class);
             }
         }
+
+        // Print compiling progress for debug use only.
+        plugins.push(new webpack.ProgressPlugin());
+
         return plugins;
     }
 
     const TailPlugins = function () {
-        return [
-            new WebpackDiskPlugin({
-                /*
-					https://www.npmjs.com/package/webpack-disk-plugin
-					OPTIONS
-					 * output.path: The base directory to write assets to. (Default: ".").
-					 * files: An array of objects to map an asset to a file path
-
-					The files array is composed of objects of the form:
-
-					 * asset: A regex or string to match the name in the webpack compiler. Note that
-					   something like [hash].main.js will be fully expanded to something like
-					   e49186041feacefb583b.main.js.
-					 * output: An object with additional options: * path: Override the top-level output.path directory to write too.
-						* filename: A specified filename to write to. Can be a straight string or a
-						  function that gets the asset name to further mutate. Also may be a single
-						  filename, a relative path to append to the base path, or an absolute path.
-				*/
-                output: {
-                    path: "build"
-                },
-                files: [
-                    { asset: "stats.json" },
-                    { asset: /[a-f0-9]{20}\.main\.js/, output: { filename: "file.js" } }
-                ]
-            }),
-        ];
+        return [];
     }
 
     const TailDebugPlugins = function () {
-        return [];
+        if (config.env_class !== 'production') {
+            return [
+                new WebpackDiskPlugin({
+                    /*
+                        https://www.npmjs.com/package/webpack-disk-plugin
+                        OPTIONS
+                         * output.path: The base directory to write assets to. (Default: ".").
+                         * files: An array of objects to map an asset to a file path
+
+                        The files array is composed of objects of the form:
+
+                         * asset: A regex or string to match the name in the webpack compiler. Note that
+                           something like [hash].main.js will be fully expanded to something like
+                           e49186041feacefb583b.main.js.
+                         * output: An object with additional options: * path: Override the top-level output.path directory to write too.
+                            * filename: A specified filename to write to. Can be a straight string or a
+                              function that gets the asset name to further mutate. Also may be a single
+                              filename, a relative path to append to the base path, or an absolute path.
+                    */
+                    output: {
+                        path: "build"
+                    },
+                    files: [
+                        { asset: "stats.json" },
+                        { asset: /[a-f0-9]{20}\.main\.js/, output: { filename: "file.js" } }
+                    ]
+                }),
+            ];
+        } else 
+            return [];
     }
 
     let entry;
@@ -110,14 +118,51 @@ function NewClientWebpackConfigBase(apppath, options = {})
 
     const hmr_patch = [ // activate HMR for React
                         'react-hot-loader/patch',
-                        'webpack-hot-middleware/client',
-						// bundle the client for hot reloading
-						// only- means to only hot reload for successful updates
-                        'webpack/hot/only-dev-server'];
+    ];
+    if (config.env_class === 'webpack-debug') {
+        // run with webpack-dev-server
+
+        /* 
+        * webpack-dev-server will automatically add webpack/hot/(dev-server|only-dev-server)
+        * and webpack-dev-server/client to output bundle which includes all hot reload management
+        * codes(@ listen to server for update, @ trigger check/apply)
+        * 
+        * However if you want customization, just manually include webpack-dev-server/client or/and
+        * webpack/hot/dev-server accordingly here. Otherwise just leave it blank.
+        */
+
+        /* 
+        * Some Explanation:
+        * webpack/hot/(only-)dev-server:
+        * work with webpack-dev-server, include 
+        * if (module.hot) {... } logic for you to the final bundle 'root' chunk
+        * (which effectively handle all non-handled hot module reload requests in children)
+        * while this chunk will only only function together with
+        * webpack-dev-server/client chunk which establish websocket connection
+        * with webpack-dev-server to receive module update event and trigger check/apply
+        * logics
+        * only- means to only hot reload for successful updates
+        */
+    } else if (config.env_class === 'debug') {
+        // run in expressjs with webpack-dev-middleware and webpack-hot-middleware
+
+        /* 
+        * webpack-hot-middleware/client:
+        * bundle the client for hot reloading
+        * use GET /webpack_hmr as keepalive http session as connection
+        * to listen to webpack-hot-middler server-side reload event
+        * and trigger check/apply accordingly. (so no need to include webpack/hot/dev-server)
+        * webpack-hot-middleware watch webpackCompiler maintained by previous 
+        * webpack-dev-middleware to add 'compile' and 'done' plugin and notify
+        * webpack-hot-middle/client accordingly.
+        */
+        hmr_patch.push('webpack-hot-middleware/client');
+    }
+
     const patchHmr = function (e) {
-        if (do_hmr)
+        if (do_hmr) {
             return hmr_patch.concat(e);
-        else
+        } else
             return e;
     }
 
@@ -145,7 +190,8 @@ function NewClientWebpackConfigBase(apppath, options = {})
 			path: appconfig.config.build.outdir.dyn_repo,
 			//filename: '[name]-[chunhash].js',
             filename: '[name].js',
-			publicPath: appconfig.config.pubroot,
+			publicPath: appconfig.config.build.pubroot,
+            //hotUpdateMainFilename:'[hash].hot-update.json',
 		},
 		resolve: {
 			// Add '.ts' and '.tsx' as resolvable extensions.
@@ -249,7 +295,7 @@ function NewClientWebpackConfigBase(apppath, options = {})
 			contentBase: config.server.config.build.dyn_repo,
 			// match the output path
 
-			publicPath: appconfig.config.pubroot,
+			publicPath: appconfig.config.build.pubroot,
 			// match the output `publicPath`
 
 			host: '0.0.0.0',
@@ -394,6 +440,11 @@ function NewServerWebpackConfigBase(options = {})
             }));
 
         banner += `process.env.NODE_ENV = '${config.env_class}'; `;
+
+        if (config.env_class === 'debug') {
+            // HotModuleReplacementPlugin here is for server hot reload (experiemnt)
+            conf.plugins.push(new webpack.HotModuleReplacementPlugin());
+        }
 
     }
 
