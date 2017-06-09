@@ -191,7 +191,6 @@ function NewClientWebpackConfigBase(apppath, options = {})
 			//filename: '[name]-[chunhash].js',
             filename: '[name].js',
 			publicPath: appconfig.config.build.pubroot,
-            //hotUpdateMainFilename:'[hash].hot-update.json',
 		},
 		resolve: {
 			// Add '.ts' and '.tsx' as resolvable extensions.

@@ -45,15 +45,6 @@ function WebServer()
             }));
         }
 
-        if (!config.env.static_frontend) {
-            utils.logtips('Server serve static s_resource at [%s]', server_config.rtpath.sta_html_repo);
-            this.use(express.static(server_config.rtpath.sta_html_repo));
-        }
-
-        utils.logtips('Server serve static d_resource at [%s]', server_config.rtpath.dyn_html_repo);
-
-        this.use(express.static(server_config.rtpath.dyn_html_repo));
-
         if (config.env_class === 'debug') {
             // setup dev middleware and hot middleware for each app
             require('./webpack_definition')(config.app);
@@ -74,6 +65,15 @@ function WebServer()
                 q = q.concat(c.children_seq);
             }
         }
+
+        if (!config.env.static_frontend) {
+            utils.logtips('Server serve static s_resource at [%s]', server_config.rtpath.sta_html_repo);
+            this.use(express.static(server_config.rtpath.sta_html_repo));
+        }
+
+        utils.logtips('Server serve static d_resource at [%s]', server_config.rtpath.dyn_html_repo);
+
+        this.use(express.static(server_config.rtpath.dyn_html_repo));
     }
 
     server.setupErrorHandler = function () {
