@@ -6,6 +6,7 @@ const webpack = require('webpack');
 const ExtractTextPlugin = require('extract-text-webpack-plugin');
 const NodeExternals = require('webpack-node-externals');
 const WebpackDiskPlugin = require('webpack-disk-plugin');
+const HtmlWebpackPlugin = require('html-webpack-plugin');
 const utils = require('utils');
 
 function getClientEntryFile(apppath)
@@ -23,19 +24,28 @@ function getClientEntryFile(apppath)
     return null;
 }
 
+function defaultIndexPageName(appname)
+{
+    let components = appname.split('.');
+    return components.slice(1).join('_');
+}
+
 function NewClientWebpackConfigBase(apppath, options = {})
 {
 	/* options:
 	*   entry: './main.js'
     *   do_hmr: true|false (false)
     *   dev_srv_pub: <dev server public uri> (a.shawnli.org:8080)
+    *   html_template: <template file name>, eg: hitao.pug, default: index.pug
+    *   html_template_engine: pug|raw, default:pug. raw means disable HtmlWebpackPlugin
+    *   html_filename: <output filename>, default: <appname>.html
     */
     apppath = path.resolve(apppath);
     const appconfig = config.getAppByDir(apppath);
 
     const CommonPlugins = function () {
-        return [
-			new ExtractTextPlugin('style.css'),
+
+        let plugins = [
 			new webpack.LoaderOptionsPlugin({
 				// test: /\.xxx$/, // may apply this only for some modules
 				options: {
@@ -44,7 +54,26 @@ function NewClientWebpackConfigBase(apppath, options = {})
 					//}
 				}
 			}),
+			new ExtractTextPlugin('style.css'),
         ];
+
+        const html_webpack_engine = options.html_template_engine || 'pug';
+        let html_webpack_config;
+        if (html_webpack_engine !== 'raw') {
+            let loader;
+            if (html_webpack_engine === 'pug')
+                loader = 'pug-loader';
+            else
+                loader = '';
+            html_webpack_config = {
+                template: (loader ? '!!' + loader + '!' : '') + (options.html_template || 'index') + '.' + html_webpack_engine,
+                filename: options.html_filename || defaultIndexPageName(appconfig.name) + '.html',
+            }
+
+            plugins.push(new HtmlWebpackPlugin(html_webpack_config));
+        }
+
+        return plugins;
     }
 
     const CommonDebugPlugins = function () {
@@ -256,14 +285,14 @@ function NewClientWebpackConfigBase(apppath, options = {})
 						{
 							loader: 'file-loader',
 							options: {
-								name: '[name].[ext]',
+								name: '[name]-[hash].[ext]',
 							}
 
 						},
                         {
                             loader: 'extract-loader',
                             options: {
-                                publicPath: '.'
+                                publicPath: appconfig.config.build.pubroot
                             }
                         },
 						"html-loader",

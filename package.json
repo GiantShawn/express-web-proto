@@ -59,6 +59,7 @@
     "mocha": "^3.2.0",
     "nodemon": "^1.11.0",
     "pug-html-loader": "^1.1.4",
+    "pug-loader": "^2.3.0",
     "quickly-copy-file": "^1.0.0",
     "react-hot-loader": "next",
     "require-reload": "^0.2.2",

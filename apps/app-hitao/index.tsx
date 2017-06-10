@@ -5,7 +5,7 @@ import {AppContainer} from 'react-hot-loader';
 import Hello from "./components/Hello";
 
 // import html
-import './index.html';
+//import './index.html';
 
 
 ReactDOM.render(
