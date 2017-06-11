@@ -10,7 +10,7 @@ module.exports = function (prouter)
     router.route('/hitao').
         get(function (req, res, next) {
             utils.logdebug("GET /hitao");
-            fs.readFile('dynamic/index.html', (err, data) => {
+            fs.readFile('dynamic/app-hitao.html', (err, data) => {
                 res.set('Content-Type', 'text/html');
                 res.send(data);
             });
