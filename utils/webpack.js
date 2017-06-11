@@ -217,8 +217,8 @@ function NewClientWebpackConfigBase(apppath, options = {})
 		entry: entry,
 		output: {
 			path: appconfig.config.build.outdir.dyn_repo,
-			//filename: '[name]-[chunhash].js',
-            filename: '[name].js',
+			filename: '[name]-[chunhash].js',
+            //filename: '[name].js',
 			publicPath: appconfig.config.build.pubroot,
 		},
 		resolve: {
