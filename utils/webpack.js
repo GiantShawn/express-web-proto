@@ -66,7 +66,7 @@ function NewClientWebpackConfigBase(apppath, options = {})
             else
                 loader = '';
             html_webpack_config = {
-                template: (loader ? '!!' + loader + '!' : '') + (options.html_template || 'index') + '.' + html_webpack_engine,
+                template: (loader ? '!!' + loader + '!' : '') + path.join(apppath, (options.html_template || 'index')) + '.' + html_webpack_engine,
                 filename: options.html_filename || defaultIndexPageName(appconfig.name) + '.html',
             }
 

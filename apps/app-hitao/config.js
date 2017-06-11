@@ -15,6 +15,7 @@ module.exports = {
             {
                 super(appname, parent, config_env);
                 if (config_env === 'build') {
+                    this.intro_doc = "Hitao eCommerce App";
                     this.config.build.externals.dyn_js = lo.assign(this.config.build.externals.dyn_js || {},
                         {
                             'react.js': '$/node_modules/react/dist/react.js',

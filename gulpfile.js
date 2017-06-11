@@ -5,12 +5,14 @@ require('app-module-path').addPath('.');
 const fs = require('fs');
 const parallel = require('async/parallel');
 const lo = require('lodash');
+const util = require('util');
 
 const gulp = require('gulp');
 const changed = require('gulp-changed');
 const gutil = require('gulp-util');
 
 const build = require('build');
+const utils = require('utils');
 
 const babelreg = require('babel-register');
 
@@ -21,15 +23,23 @@ const babelreg = require('babel-register');
 //var sourcemaps = require('gulp-sourcemaps');
 //var del = require('del');
 
-const config = require('config')('build');
-
 const argv = gutil.env
 
-if (argv.env) {
-    config.env_class = argv.env;
-}
+build.initBuild(argv.env);
 
-gulp.task('setup-dir', build.setupServerDirectories);
+const config = require('config')('build');
+
+
+gulp.task('setup-dir', function () {
+    if (argv.fullbuild) {
+        return build.setupServerDirectories();
+    } else {
+        return new Promise((rsv, rej) => {
+            fs.access(config.server.config.build.outdir, fs.constants.R_OK,
+                (err) => err ? build.setupServerDirectories() : rsv());
+        });
+    }
+});
 
 gulp.task('build-express', ['setup-dir'], build.buildExpress);
 
@@ -37,6 +47,14 @@ gulp.task('setup-externals', function () {
     let rootapp = config.app;
     if (argv.app) {
         rootapp = config.getApp(argv.app);
+        if (!rootapp) {
+            utils.logerror_noexit("App [%s] not found", argv.app);
+            utils.logtips("Available apps:");
+            for (let appname of config.all_app_names) {
+                utils.logtips("\t[%s]\t%s", appname, config.getApp(appname).intro_doc);
+            }
+            return Promise.reject();
+        }
     }
     return build.setupExternals(rootapp);
 });
@@ -50,7 +68,34 @@ gulp.task('build-app', ['setup-dir', 'setup-externals'], function () {
     return build.buildApp(rootapp);
 });
 
-gulp.task('default', ['build-express', 'build-app']);
+gulp.task('build', ['build-express', 'build-app']);
+
+gulp.task('list-apps', function () {
+    for (let appname of config.all_app_names) {
+        utils.logtips("[%s]\t%s", appname, config.getApp(appname).intro_doc);
+    }
+});
+
+gulp.task('default', function () {
+    /* print usable help */
+    utils.logtips(`
+Get all gulp tasks by \`gulp -T\`
+
+Available Options:
+--env           : build environment (production/debug/webpack-debug), default: debug
+--app           : build specify app only
+--fullbuild     : do full build, includes
+                 * full dist directory existance check.
+
+Special Targets:
+list-apps     : list all apps
+`);
+});
+
+gulp.on("err", function (err) {
+    utils.logerror_noexit(util.inspect(err, {depth:null}));
+});
+
 
 /*
 gulp.task('build-js', function () {

@@ -6,7 +6,7 @@
 			"targets": {
 				"node": "current"
 			},
-			"debug": true,
+		//	"debug": true,
 			"modules": false
 		}
 		],

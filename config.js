@@ -168,6 +168,7 @@ class AppConfig
         this.root = path.join(ROOT_R, apppath);
         this.apppath = apppath;
         this.name = apppath.replace(new RegExp(path.sep, 'g'), '.');
+        this.intro_doc = '';
         this.parent = parent;
 
         this.config =  {}
@@ -413,6 +414,25 @@ function ConfigGenerator(config_env) {
             return this.getApp(path.join(this.app.name, rel_root).replace(new RegExp(path.sep, 'g'), '.'));
         },
             
+        get all_app_names() {
+            let names = [];
+            let st = [[this.app, 0]];
+            while (st.length > 0) {
+                const [c, ci] = st[0];
+
+                if (ci == 0) {
+                    names.push(c.name);
+                }
+            
+                if (ci >= c.children_seq.length) {
+                    st.shift();
+                    continue;
+                }
+                st[0][1] = ci + 1;
+                st.unshift([c.children_seq[ci], 0]);
+            }
+            return names;
+        },
     };
 
     if (config_env === 'build') {
@@ -451,6 +471,7 @@ if (require.main === module) {
     let config = ConfigGenerator('server');
 
     prettyOutput("config.env_class", config.env_class);
+    prettyOutput("config.apps", config.all_app_names);
     prettyOutput("config.app", config.app);
     prettyOutput("config.server", config.server);
 }
