@@ -1,9 +1,14 @@
 *.sw[polmn]
 *.pyc
-node_modules/*
 npm-debug.log
+yarn-error.log
+
+node_modules/*
+dist/*
+
 tsconfig.json
 .apps_definition.json
+.awcache
+
 server/router_definition.js
 server/webpack_definition.js
-.awcache
